@@ -1,0 +1,46 @@
+# 1. Create a Batch
+curl -X 'POST' \
+  'http://127.0.0.1:8000/api/batches/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "batch_id": "B2001",
+  "medicine_name": "Amoxicillin 250mg",
+  "manufacturer": "PharmaPlus",
+  "batch_number": "PP-9123",
+  "manufacturing_date": "2024-05-10",
+  "expiry_date": "2026-05-10"
+}'
+
+# 2. Get All Batches
+curl -X 'GET' 'http://127.0.0.1:8000/api/batches/' \
+  -H 'accept: application/json'
+
+# 3. Create a Scan Result
+curl -X 'POST' \
+  'http://127.0.0.1:8000/api/scans/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "batch_id": "B2001",
+  "medicine_name": "Amoxicillin 250mg",
+  "classification": "Genuine",
+  "confidence_score": 0.98,
+  "anomaly_score": 0.02
+}'
+
+# 4. Get All Scans
+curl -X 'GET' 'http://127.0.0.1:8000/api/scans/' \
+  -H 'accept: application/json'
+
+# 5. Get Dashboard Stats
+curl -X 'GET' 'http://127.0.0.1:8000/api/dashboard/stats' \
+  -H 'accept: application/json'
+
+# 6. Get Dashboard Trends
+curl -X 'GET' 'http://127.0.0.1:8000/api/dashboard/trends?days=7' \
+  -H 'accept: application/json'
+
+# 7. Get Dashboard Risk
+curl -X 'GET' 'http://127.0.0.1:8000/api/dashboard/risk' \
+  -H 'accept: application/json'

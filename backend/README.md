@@ -76,3 +76,149 @@ To ensure the backend starts automatically on boot:
    sudo systemctl enable med-backend
    sudo systemctl start med-backend
    ```
+
+   ## PostgreSQL migrations
+
+   Before running synchronization against a new PostgreSQL database, create the required tables on the cloud DB. A SQL migration file is included at `postgres_migrations/create_tables.sql`.
+
+   Run it with `psql` (replace the connection string with your `POSTGRES_URL`):
+
+   ```bash
+   # Example (replace with your real connection string):
+   psql "postgresql://user:password@host:5432/dbname" -f postgres_migrations/create_tables.sql
+   ```
+
+   The migration creates `batches` and `scans` tables and an idempotent primary key on `(device_id, scan_id)` to prevent duplicate cloud inserts.
+
+   Alternatively, you can use the included Python helper which reads `POSTGRES_URL` from your environment or `.env` and applies the migration without printing credentials:
+
+   ```bash
+   # Ensure POSTGRES_URL is set (PowerShell):
+   $env:POSTGRES_URL = 'postgresql://<user>:<password>@...'
+   python scripts/apply_migrations.py
+
+   # Or (Linux/macOS):
+   export POSTGRES_URL='postgresql://<user>:<password>@...'
+   python scripts/apply_migrations.py
+   ```
+
+   Do NOT commit `.env` with credentials. Store the connection string in a secure place and load it into the environment on the Raspberry Pi or CI system.
+
+## API Contract
+
+### ML -> Backend: authentication result
+
+Endpoint: `POST /api/scans/`
+
+Request JSON example:
+```json
+{
+  "batch_id": "B12345",
+  "medicine_name": "Paracetamol",
+  "classification": "Genuine",
+  "confidence_score": 0.96,
+  "anomaly_score": 0.04
+}
+```
+
+Field rules:
+- `batch_id`: string or null
+- `medicine_name`: string or null
+- `classification`: `"Genuine"`, `"Counterfeit"`, or null
+- `confidence_score`: float between 0.0 and 1.0, or null
+- `anomaly_score`: float between 0.0 and 1.0, or null
+
+The backend automatically fills in:
+- `device_id` from `DEVICE_ID`
+- `timestamp` from server time
+- `sync_status` as `pending`
+
+### Backend -> Frontend: scan result
+
+`GET /api/scans/{scan_id}` JSON example:
+```json
+{
+  "scan_id": 1,
+  "device_id": "PI_001",
+  "batch_id": "B12345",
+  "medicine_name": "Paracetamol",
+  "timestamp": "2026-08-14T12:00:00Z",
+  "classification": "Genuine",
+  "confidence_score": 0.96,
+  "anomaly_score": 0.04,
+  "sync_status": "pending"
+}
+```
+
+### Backend -> Frontend: scan history
+
+`GET /api/scans/?skip=0&limit=50` returns a list of scan objects like the one above.
+
+### Backend -> Frontend: batch details
+
+`GET /api/batches/{batch_id}` JSON example:
+```json
+{
+  "batch_id": "B12345",
+  "medicine_name": "Paracetamol",
+  "manufacturer": "Alpha Pharma",
+  "batch_number": "ALPHA-001",
+  "manufacturing_date": "2025-01-01",
+  "expiry_date": "2028-01-01",
+  "created_at": "2026-08-14T12:00:00Z"
+}
+```
+
+### Backend -> Frontend: dashboard stats
+
+`GET /api/dashboard/stats`:
+```json
+{
+  "total_scans": 42,
+  "genuine": 30,
+  "counterfeit": 12,
+  "pending_sync": 3
+}
+```
+
+### Backend -> Frontend: dashboard trends
+
+`GET /api/dashboard/trends?days=7`:
+```json
+{
+  "trends": [
+    {"date": "2026-08-08", "count": 12},
+    {"date": "2026-08-09", "count": 7},
+    {"date": "2026-08-10", "count": 9}
+  ]
+}
+```
+
+### Backend -> Frontend: risk
+
+`GET /api/dashboard/risk`:
+```json
+{
+  "average_anomaly_score": 0.2143
+}
+```
+
+## Current API overview
+
+- `POST /api/scans/` — create a scan result from ML output
+- `GET /api/scans/` — list scans with `skip` and `limit`
+- `GET /api/scans/{scan_id}` — fetch one scan
+- `POST /api/batches/` — create a batch record
+- `GET /api/batches/` — list batches with `skip` and `limit`
+- `GET /api/batches/{batch_id}` — fetch one batch
+- `GET /api/dashboard/stats` — count scans by classification
+- `GET /api/dashboard/trends` — aggregate per day
+- `GET /api/dashboard/risk` — average anomaly
+
+## SQLite vs Neon
+
+- SQLite is the local source of truth.
+- Neon PostgreSQL is used only for cloud storage and centralized sync.
+- Local scan records remain in SQLite until PostgreSQL accepts them.
+- `sync_status` should not be set directly by clients.
+

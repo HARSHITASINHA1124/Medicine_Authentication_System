@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal, Optional
 from datetime import date, datetime
 
 class BatchBase(BaseModel):
@@ -20,9 +20,9 @@ class BatchResponse(BatchBase):
 class ScanBase(BaseModel):
     batch_id: Optional[str] = None
     medicine_name: Optional[str] = None
-    classification: Optional[str] = None
-    confidence_score: Optional[float] = None
-    anomaly_score: Optional[float] = None
+    classification: Optional[Literal["Genuine", "Counterfeit"]] = None
+    confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    anomaly_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 class ScanCreate(ScanBase):
     pass

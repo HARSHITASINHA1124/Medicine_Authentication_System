@@ -1,0 +1,58 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter / notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.env.*
+
+# Data and model artifacts
+data/
+!data/public/
+!data/processed/
+processed/
+artifacts/
+checkpoints/
+models/
+weights/
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.onnx
+*.pt
+*.pth
+*.bin
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Coverage and test artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build output
+build/
+dist/
+*.egg-info/

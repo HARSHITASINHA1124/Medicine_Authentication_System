@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,18 +8,29 @@ import matplotlib.pyplot as plt
 from scipy.stats import f_oneway
 from sklearn.feature_selection import mutual_info_classif
 
-from .config import FEATURES
-from .data_loader import load_data
-from .preprocessing import AS7262Preprocessor
+try:
+    from .config import FEATURES
+    from .data_loader import load_data
+    from .preprocessing import AS7262Preprocessor
+except ImportError:  # pragma: no cover - direct script execution
+    from config import FEATURES
+    from data_loader import load_data
+    from preprocessing import AS7262Preprocessor
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-DATA_PATH = "data/processed/medicines_as7262.csv"
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-OUTPUT_DIR = "eda_results"
+DATA_CANDIDATES = [
+    BASE_DIR / "data" / "processed" / "medicines_as7262_updated.csv",
+    BASE_DIR / "data" / "processed" / "medicines_as7262.csv",
+]
+
+DATA_PATH = next((path for path in DATA_CANDIDATES if path.exists()), DATA_CANDIDATES[0])
+OUTPUT_DIR = BASE_DIR / "eda_results"
 
 os.makedirs(
     OUTPUT_DIR,

@@ -1,6 +1,9 @@
 import pandas as pd
 
-from .config import FEATURES
+try:
+    from .config import FEATURES
+except ImportError:  # pragma: no cover - direct script execution
+    from config import FEATURES
 
 
 def calibrate(df, calibration_values=None):

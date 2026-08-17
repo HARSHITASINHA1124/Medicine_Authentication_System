@@ -1,0 +1,50 @@
+row_index,actual_medicine,predicted_medicine,classification_confidence,classification_status,anomaly_score,anomaly_status,final_status,reason
+0,cocaine,cocaine,1.0,HIGH,7.0816556523869485,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+1,cocaine,cocaine,0.98,HIGH,7.856661087190559,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+2,cocaine,cocaine,1.0,HIGH,3.346801976240613,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+3,cocaine,cocaine,1.0,HIGH,4.578336460921263,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+4,cocaine,cocaine,1.0,HIGH,12.025825889219618,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+5,cocaine,cocaine,0.945,HIGH,23.356148492435526,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+6,cocaine,FMA,0.535,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+7,cocaine,cocaine,1.0,HIGH,10.610501590805143,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+8,cocaine,cocaine,1.0,HIGH,9.76964107480083,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+9,cocaine,cocaine,1.0,HIGH,14.406311885506057,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+10,cocaine,cocaine,0.99,HIGH,40.57470369117869,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+11,cocaine,cocaine,1.0,HIGH,17.44599208041018,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+12,cocaine,cocaine,1.0,HIGH,7.790258323995771,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+13,cocaine,cocaine,1.0,HIGH,4.871471158747852,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+14,cocaine,cocaine,1.0,HIGH,2.5755533671860817,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+15,cocaine,cocaine,1.0,HIGH,2.4001228607370995,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+16,cocaine,cocaine,1.0,HIGH,9.82192905738634,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+17,cocaine,cocaine,0.965,HIGH,7.901311224466099,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+18,cocaine,cocaine,0.97,HIGH,5.521120118023647,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+19,cocaine,cocaine,1.0,HIGH,12.175857413234553,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+20,cocaine,cocaine,1.0,HIGH,3.2067421571530303,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+21,cocaine,cocaine,1.0,HIGH,4.395674119203789,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+22,cocaine,cocaine,1.0,HIGH,5.573397959960176,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+23,cocaine,cocaine,1.0,HIGH,13.767892473891038,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+24,cocaine,cocaine,1.0,HIGH,5.938736961473822,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+25,cocaine,cocaine,1.0,HIGH,4.805929433265305,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+26,cocaine,cocaine,1.0,HIGH,4.111747481484714,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+27,MDMA,cocaine,0.93,HIGH,632.5903837527729,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+28,2C-B,2C-B,0.7,HIGH,598.4385791187241,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+29,2C-B,MDMA,0.73,HIGH,2.226081015379875,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+30,2C-B isomer,2C-B isomer,0.745,HIGH,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
+31,FA,FA,0.54,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+32,2C-B isomer,2C-B isomer,0.675,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
+33,2C-B,2C-B,0.7,HIGH,28.36848541821746,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+34,2C-B,2C-B,0.975,HIGH,3.049411495215892,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+35,FMA,MDMA,0.535,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+36,MDMA,2C-B isomer,0.515,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
+37,MDMA,cocaine,0.56,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+38,MDMA,MDMA,0.575,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+39,MDMA,MDMA,0.53,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+40,MDMA,MDMA,0.69,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+41,MDMA,MDMA,0.515,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+42,MDMA,FA,0.45,LOW,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+43,MDMA,MDMA,0.91,HIGH,59.05622976221661,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+44,MDMA,2C-B,0.585,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+45,MDMA,2C-B,0.49,LOW,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+46,MDMA,2C-B isomer,0.38,LOW,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
+47,MDMA,2C-B,0.635,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
+48,cocaine,cocaine,0.725,HIGH,1578.1154282465577,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.

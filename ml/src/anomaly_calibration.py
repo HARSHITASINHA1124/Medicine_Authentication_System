@@ -5,256 +5,212 @@ import pandas as pd
 import joblib
 
 
+try:
+    from .config import (
+        CHANNELS,
+        TARGET,
+        TRAIN_PATH,
+        TEST_PATH,
+        MODEL_DIR,
+        RESULTS_DIR,
+        ANOMALY_GENUINE_PERCENTILE,
+        ANOMALY_COUNTERFEIT_PERCENTILE
+    )
+
+except ImportError:
+
+    from config import (
+        CHANNELS,
+        TARGET,
+        TRAIN_PATH,
+        TEST_PATH,
+        MODEL_DIR,
+        RESULTS_DIR,
+        ANOMALY_GENUINE_PERCENTILE,
+        ANOMALY_COUNTERFEIT_PERCENTILE
+    )
+
+
 # ============================================================
-# CONFIGURATION
+# PATHS
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_DIR = Path(MODEL_DIR)
+RESULTS_DIR = Path(RESULTS_DIR)
 
-TRAIN_PATH = (
-    BASE_DIR
-    / "data"
-    / "processed"
-    / "train.csv"
+MODEL_DIR.mkdir(
+    parents=True,
+    exist_ok=True
 )
 
-TEST_PATH = (
-    BASE_DIR
-    / "data"
-    / "processed"
-    / "test.csv"
+RESULTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True
 )
 
-CLASSIFIER_PATH = (
-    BASE_DIR
-    / "data"
-    / "processed"
-    / "best_classifier.joblib"
-)
-
-ANOMALY_PROFILE_PATH = (
-    BASE_DIR
-    / "data"
-    / "processed"
-    / "anomaly_profiles.joblib"
+ANOMALY_MODEL_PATH = (
+    MODEL_DIR /
+    "anomaly_model.joblib"
 )
 
 THRESHOLD_PATH = (
-    BASE_DIR
-    / "data"
-    / "processed"
-    / "anomaly_thresholds.joblib"
+    MODEL_DIR /
+    "anomaly_thresholds.joblib"
+)
+
+RESULT_PATH = (
+    RESULTS_DIR /
+    "anomaly_calibration_scores.csv"
 )
 
 
-CHANNELS = [
-    "ch450",
-    "ch500",
-    "ch550",
-    "ch570",
-    "ch600",
-    "ch650"
-]
-
-TARGET = "medicine"
-
-# Percentage of genuine validation samples
-# allowed to fall outside the reference boundary.
-CONTAMINATION = 0.05
-
-
 # ============================================================
-# LOAD DATA
+# LOAD ANOMALY MODEL
 # ============================================================
 
-def load_data():
+def load_anomaly_model():
 
-    train_df = pd.read_csv(
-        TRAIN_PATH
-    )
+    if not ANOMALY_MODEL_PATH.exists():
 
-    test_df = pd.read_csv(
-        TEST_PATH
-    )
-
-    return train_df, test_df
-
-
-# ============================================================
-# MAHALANOBIS DISTANCE
-# ============================================================
-
-def calculate_distance(
-    X,
-    mean,
-    precision
-):
-
-    difference = X - mean
-
-    distance_squared = np.sum(
-        (difference @ precision)
-        * difference,
-        axis=1
-    )
-
-    # Numerical safety
-    distance_squared = np.maximum(
-        distance_squared,
-        0
-    )
-
-    return np.sqrt(
-        distance_squared
-    )
-
-
-# ============================================================
-# CALIBRATE THRESHOLDS
-# ============================================================
-
-def calibrate_thresholds(
-    train_df,
-    test_df,
-    classifier_pipeline,
-    profiles
-):
-
-    # --------------------------------------------------------
-    # IMPORTANT:
-    # Use the EXACT SAME preprocessor that was fitted
-    # inside best_classifier.joblib.
-    # --------------------------------------------------------
-
-    preprocessor = (
-        classifier_pipeline
-        .named_steps["preprocessor"]
-    )
-
-    X_test_raw = test_df[
-        CHANNELS
-    ]
-
-    y_test = test_df[
-        TARGET
-    ]
-
-    X_test_features = (
-        preprocessor.transform(
-            X_test_raw
+        raise FileNotFoundError(
+            f"Anomaly model not found:\n"
+            f"{ANOMALY_MODEL_PATH}\n\n"
+            "Run anomaly_training.py first."
         )
+
+    package = joblib.load(
+        ANOMALY_MODEL_PATH
     )
 
-    X_test_features = np.asarray(
-        X_test_features,
-        dtype=float
+    if "medicine_profiles" not in package:
+
+        raise ValueError(
+            "The anomaly model is not medicine-aware.\n"
+            "Rerun anomaly_training.py."
+        )
+
+    print(
+        "\nMedicine profiles:"
     )
+
+    for medicine in package[
+        "medicine_profiles"
+    ]:
+
+        print(
+            f"  {medicine}"
+        )
+
+    return package
+
+
+# ============================================================
+# CALCULATE THRESHOLDS
+# ============================================================
+
+def calculate_thresholds(
+    package
+):
+
+    profiles = package[
+        "medicine_profiles"
+    ]
 
     thresholds = {}
 
     print(
-        "\n"
-        + "=" * 60
+        "\n" + "=" * 60
     )
 
     print(
-        "ANOMALY THRESHOLD CALIBRATION"
+        "MEDICINE-AWARE ANOMALY THRESHOLDS"
     )
 
     print(
         "=" * 60
     )
 
-    # --------------------------------------------------------
-    # Calibrate separately for every medicine
-    # --------------------------------------------------------
+    for medicine, profile in profiles.items():
 
-    for medicine in sorted(
-        profiles.keys()
-    ):
-
-        # Genuine validation samples belonging
-        # to this medicine
-        mask = (
-            y_test.values
-            == medicine
+        scores = np.asarray(
+            profile[
+                "training_scores"
+            ],
+            dtype=float
         )
 
-        X_medicine = (
-            X_test_features[mask]
-        )
+        scores = scores[
+            np.isfinite(scores)
+        ]
 
-        if len(X_medicine) < 2:
+        if len(scores) < 3:
 
             print(
                 f"\nSkipping {medicine}: "
-                f"only {len(X_medicine)} "
-                "validation sample(s)."
+                f"only {len(scores)} scores."
             )
 
             continue
 
-        profile = profiles[
+        genuine_threshold = np.percentile(
+            scores,
+            ANOMALY_GENUINE_PERCENTILE
+        )
+
+        counterfeit_threshold = np.percentile(
+            scores,
+            ANOMALY_COUNTERFEIT_PERCENTILE
+        )
+
+        thresholds[
             medicine
-        ]
+        ] = {
 
-        distances = calculate_distance(
-            X_medicine,
-            profile["mean"],
-            profile["precision"]
-        )
+            "genuine_threshold":
+                float(
+                    genuine_threshold
+                ),
 
-        # ----------------------------------------------------
-        # Threshold
-        #
-        # 95th percentile means approximately 95%
-        # of genuine validation observations are
-        # expected to fall below this threshold.
-        # ----------------------------------------------------
+            "counterfeit_threshold":
+                float(
+                    counterfeit_threshold
+                ),
 
-        threshold = np.percentile(
-            distances,
-            100 * (1 - CONTAMINATION)
-        )
+            "genuine_percentile":
+                ANOMALY_GENUINE_PERCENTILE,
 
-        thresholds[medicine] = {
-            "threshold": float(
-                threshold
-            ),
+            "counterfeit_percentile":
+                ANOMALY_COUNTERFEIT_PERCENTILE,
 
-            "n_validation_samples":
-                int(len(distances)),
-
-            "distance_mean":
-                float(np.mean(distances)),
-
-            "distance_std":
-                float(np.std(distances)),
-
-            "distance_min":
-                float(np.min(distances)),
-
-            "distance_max":
-                float(np.max(distances))
+            "n_reference_samples":
+                int(
+                    len(scores)
+                )
         }
 
         print(
-            f"\nMedicine: {medicine}"
+            f"\n{medicine}"
         )
 
         print(
-            f"Validation samples: "
-            f"{len(distances)}"
+            "  Reference samples:",
+            len(scores)
         )
 
         print(
-            f"Mean distance: "
-            f"{np.mean(distances):.4f}"
+            "  Genuine boundary:",
+            f"{genuine_threshold:.4f}"
         )
 
         print(
-            f"Threshold: "
-            f"{threshold:.4f}"
+            "  Counterfeit boundary:",
+            f"{counterfeit_threshold:.4f}"
+        )
+
+    if not thresholds:
+
+        raise ValueError(
+            "No medicine thresholds could be created."
         )
 
     return thresholds
@@ -268,31 +224,30 @@ def save_thresholds(
     thresholds
 ):
 
-    THRESHOLD_PATH.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    package = {
+
+        "version":
+            "2.0",
+
+        "description":
+            "Medicine-specific anomaly "
+            "decision boundaries",
+
+        "profiles":
+            thresholds
+    }
 
     joblib.dump(
-        thresholds,
+        package,
         THRESHOLD_PATH
     )
 
     print(
-        "\n"
-        + "=" * 60
-    )
-
-    print(
-        "Thresholds saved to:"
+        "\nThresholds saved to:"
     )
 
     print(
         THRESHOLD_PATH
-    )
-
-    print(
-        "=" * 60
     )
 
 
@@ -300,69 +255,27 @@ def save_thresholds(
 # MAIN
 # ============================================================
 
-if __name__ == "__main__":
+def main():
 
-    # --------------------------------------------------------
-    # Load data
-    # --------------------------------------------------------
-
-    train_df, test_df = (
-        load_data()
+    package = (
+        load_anomaly_model()
     )
-
-    # --------------------------------------------------------
-    # Load classifier
-    # --------------------------------------------------------
-
-    if not CLASSIFIER_PATH.exists():
-
-        raise FileNotFoundError(
-            "best_classifier.joblib "
-            "not found.\n"
-            "Run classification.py first."
-        )
-
-    classifier_pipeline = (
-        joblib.load(
-            CLASSIFIER_PATH
-        )
-    )
-
-    # --------------------------------------------------------
-    # Load anomaly reference profiles
-    # --------------------------------------------------------
-
-    if not ANOMALY_PROFILE_PATH.exists():
-
-        raise FileNotFoundError(
-            "anomaly_profiles.joblib "
-            "not found.\n"
-            "Run anomaly.py first."
-        )
-
-    profiles = (
-        joblib.load(
-            ANOMALY_PROFILE_PATH
-        )
-    )
-
-    # --------------------------------------------------------
-    # Calibrate
-    # --------------------------------------------------------
 
     thresholds = (
-        calibrate_thresholds(
-            train_df,
-            test_df,
-            classifier_pipeline,
-            profiles
+        calculate_thresholds(
+            package
         )
     )
-
-    # --------------------------------------------------------
-    # Save
-    # --------------------------------------------------------
 
     save_thresholds(
         thresholds
     )
+
+    print(
+        "\nAnomaly calibration completed."
+    )
+
+
+if __name__ == "__main__":
+
+    main()

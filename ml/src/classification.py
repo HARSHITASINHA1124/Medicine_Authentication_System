@@ -9,63 +9,151 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 
+
 try:
+    from .config import (
+        CHANNELS,
+        TARGET,
+        GROUP,
+        RANDOM_STATE,
+        N_CV_SPLITS,
+        TRAIN_PATH,
+        TEST_PATH,
+        MODEL_DIR,
+        RESULTS_DIR
+    )
+
     from .preprocessing import AS7262Preprocessor
-except ImportError:  # pragma: no cover - direct script execution
+
+except ImportError:  # pragma: no cover
+
+    from config import (
+        CHANNELS,
+        TARGET,
+        GROUP,
+        RANDOM_STATE,
+        N_CV_SPLITS,
+        TRAIN_PATH,
+        TEST_PATH,
+        MODEL_DIR,
+        RESULTS_DIR
+    )
+
     from preprocessing import AS7262Preprocessor
 
 
 # ============================================================
-# CONFIGURATION
+# DIRECTORIES
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-TRAIN_PATH = BASE_DIR / "data" / "processed" / "train.csv"
-TEST_PATH = BASE_DIR / "data" / "processed" / "test.csv"
+MODEL_DIR = Path(MODEL_DIR)
+RESULTS_DIR = Path(RESULTS_DIR)
 
-CHANNELS = [
-    "ch450",
-    "ch500",
-    "ch550",
-    "ch570",
-    "ch600",
-    "ch650"
-]
+MODEL_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
-TARGET = "medicine"
-GROUP = "sample_id"
-
-RANDOM_STATE = 42
+RESULTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
 
 # ============================================================
 # LOAD DATA
 # ============================================================
 
-def normalize_sample_column(df):
-
-    if "sample_id" not in df.columns and "sample_code" in df.columns:
-        df = df.rename(columns={"sample_code": "sample_id"})
-
-    if "sample_id" not in df.columns:
-        raise ValueError(
-            "Training/test data is missing 'sample_id'. "
-            "Expected the split to include one row per sample/tablet."
-        )
-
-    return df
-
-
 def load_data():
 
-    train_df = pd.read_csv(TRAIN_PATH)
-    test_df = pd.read_csv(TEST_PATH)
+    train_df = pd.read_csv(
+        TRAIN_PATH
+    )
 
-    train_df = normalize_sample_column(train_df)
-    test_df = normalize_sample_column(test_df)
+    test_df = pd.read_csv(
+        TEST_PATH
+    )
 
-    print("Train shape:", train_df.shape)
-    print("Test shape:", test_df.shape)
+    # --------------------------------------------------------
+    # Backward compatibility
+    # --------------------------------------------------------
+
+    if (
+        GROUP not in train_df.columns
+        and "sample_code" in train_df.columns
+    ):
+
+        train_df = train_df.rename(
+            columns={
+                "sample_code": GROUP
+            }
+        )
+
+    if (
+        GROUP not in test_df.columns
+        and "sample_code" in test_df.columns
+    ):
+
+        test_df = test_df.rename(
+            columns={
+                "sample_code": GROUP
+            }
+        )
+
+    # --------------------------------------------------------
+    # Validate columns
+    # --------------------------------------------------------
+
+    required = (
+        CHANNELS
+        + [TARGET, GROUP]
+    )
+
+    for column in required:
+
+        if column not in train_df.columns:
+
+            raise ValueError(
+                f"Column '{column}' missing "
+                "from train.csv."
+            )
+
+        if column not in test_df.columns:
+
+            raise ValueError(
+                f"Column '{column}' missing "
+                "from test.csv."
+            )
+
+    print("\n" + "=" * 60)
+    print("CLASSIFICATION DATA")
+    print("=" * 60)
+
+    print(
+        "\nTrain shape:",
+        train_df.shape
+    )
+
+    print(
+        "Test shape:",
+        test_df.shape
+    )
+
+    print(
+        "\nTrain samples per medicine:"
+    )
+
+    print(
+        train_df[TARGET].value_counts()
+    )
+
+    print(
+        "\nTest samples per medicine:"
+    )
+
+    print(
+        test_df[TARGET].value_counts()
+    )
 
     return train_df, test_df
 
@@ -78,32 +166,32 @@ def create_feature_configs():
 
     return {
 
-        # 6 normalized features
         "normalized": {
+
             "use_normalized": True,
             "use_ratios": False,
             "use_differences": False,
             "use_slopes": False
         },
 
-        # 6 normalized + 6 ratios = 12
         "normalized_ratios": {
+
             "use_normalized": True,
             "use_ratios": True,
             "use_differences": False,
             "use_slopes": False
         },
 
-        # 6 normalized + 6 ratios + 5 differences = 17
         "normalized_ratios_differences": {
+
             "use_normalized": True,
             "use_ratios": True,
             "use_differences": True,
             "use_slopes": False
         },
 
-        # All 22 engineered features
         "all_features": {
+
             "use_normalized": True,
             "use_ratios": True,
             "use_differences": True,
@@ -120,152 +208,261 @@ def create_models():
 
     return {
 
-        "Logistic Regression": LogisticRegression(
-            max_iter=2000,
-            random_state=RANDOM_STATE
-        ),
+        "Logistic Regression":
 
-        "SVM": SVC(
-            kernel="rbf",
-            probability=True,
-            random_state=RANDOM_STATE
-        ),
+            LogisticRegression(
+                max_iter=2000,
+                random_state=RANDOM_STATE
+            ),
 
-        "Random Forest": RandomForestClassifier(
-            n_estimators=200,
-            random_state=RANDOM_STATE
-        )
+        "SVM":
+
+            SVC(
+                kernel="rbf",
+                probability=True,
+                random_state=RANDOM_STATE
+            ),
+
+        "Random Forest":
+
+            RandomForestClassifier(
+                n_estimators=200,
+                random_state=RANDOM_STATE
+            )
     }
 
 
 # ============================================================
-# CREATE PIPELINE
+# CREATE ML PIPELINE
 # ============================================================
 
-def create_pipeline(feature_config, model):
+def create_pipeline(
+    feature_config,
+    model
+):
 
     preprocessor = AS7262Preprocessor(
-        use_normalized=feature_config["use_normalized"],
-        use_ratios=feature_config["use_ratios"],
-        use_differences=feature_config["use_differences"],
-        use_slopes=feature_config["use_slopes"],
+
+        use_normalized=
+        feature_config[
+            "use_normalized"
+        ],
+
+        use_ratios=
+        feature_config[
+            "use_ratios"
+        ],
+
+        use_differences=
+        feature_config[
+            "use_differences"
+        ],
+
+        use_slopes=
+        feature_config[
+            "use_slopes"
+        ],
+
         use_standard_scaling=True
     )
 
     pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", model)
+
+        (
+            "preprocessor",
+            preprocessor
+        ),
+
+        (
+            "classifier",
+            model
+        )
     ])
 
     return pipeline
 
 
 # ============================================================
-# CROSS-VALIDATION
+# DETERMINE CV SPLITS
 # ============================================================
 
-def compare_models(train_df):
+def determine_cv_splits(
+    train_df
+):
 
-    X = train_df[CHANNELS]
-    y = train_df[TARGET]
-    groups = train_df[GROUP]
-
-    feature_configs = create_feature_configs()
-    models = create_models()
-
-    # Number of different samples available per medicine
     group_counts = (
         train_df
         .groupby(TARGET)[GROUP]
         .nunique()
     )
 
-    print("\nSamples per medicine:")
-    print(group_counts)
-
-    min_groups = group_counts.min()
-
-    if min_groups < 2:
-
-        raise ValueError(
-            "Not enough different samples per medicine "
-            "for stratified group cross-validation. "
-            "Each class needs at least 2 unique sample_id values. "
-            f"Current minimum is {min_groups}."
-        )
-
-    n_splits = min(
-        5,
-        int(min_groups)
+    print(
+        "\nPhysical samples per medicine:"
     )
 
     print(
+        group_counts
+    )
+
+    min_groups = int(
+        group_counts.min()
+    )
+
+    n_splits = min(
+        N_CV_SPLITS,
+        min_groups
+    )
+
+    if n_splits < 2:
+
+        raise ValueError(
+            "At least 2 physical samples "
+            "per medicine are required "
+            "for cross-validation."
+        )
+
+    print(
         f"\nUsing {n_splits}-fold "
-        "Stratified Group Cross-Validation."
+        "StratifiedGroupKFold."
+    )
+
+    return n_splits
+
+
+# ============================================================
+# MODEL COMPARISON
+# ============================================================
+
+def compare_models(
+    train_df
+):
+
+    X = train_df[
+        CHANNELS
+    ]
+
+    y = train_df[
+        TARGET
+    ]
+
+    groups = train_df[
+        GROUP
+    ]
+
+    feature_configs = (
+        create_feature_configs()
+    )
+
+    models = (
+        create_models()
+    )
+
+    n_splits = determine_cv_splits(
+        train_df
     )
 
     cv = StratifiedGroupKFold(
+
         n_splits=n_splits,
+
         shuffle=True,
+
         random_state=RANDOM_STATE
     )
 
     results = []
 
-    for feature_name, feature_config in feature_configs.items():
+    # --------------------------------------------------------
+    # Feature configurations
+    # --------------------------------------------------------
+
+    for (
+        feature_name,
+        feature_config
+    ) in feature_configs.items():
 
         print(
-            f"\n{'=' * 60}"
-        )
-        print(
-            f"FEATURE SET: {feature_name}"
-        )
-        print(
-            f"{'=' * 60}"
+            "\n" + "=" * 60
         )
 
-        for model_name, model in models.items():
+        print(
+            "FEATURE SET:",
+            feature_name
+        )
+
+        print(
+            "=" * 60
+        )
+
+        # ----------------------------------------------------
+        # Models
+        # ----------------------------------------------------
+
+        for (
+            model_name,
+            model
+        ) in models.items():
 
             print(
                 f"\nTesting: "
-                f"{feature_name} + {model_name}"
+                f"{feature_name} + "
+                f"{model_name}"
             )
 
             pipeline = create_pipeline(
+
                 feature_config,
+
                 model
             )
 
             scores = cross_validate(
+
                 pipeline,
+
                 X,
+
                 y,
+
                 groups=groups,
+
                 cv=cv,
+
                 scoring=[
                     "accuracy",
                     "precision_macro",
                     "recall_macro",
                     "f1_macro"
                 ],
-                n_jobs=-1
+
+                n_jobs=-1,
+
+                error_score="raise"
             )
 
-            accuracy = scores[
-                "test_accuracy"
-            ].mean()
+            accuracy = (
+                scores[
+                    "test_accuracy"
+                ].mean()
+            )
 
-            precision = scores[
-                "test_precision_macro"
-            ].mean()
+            precision = (
+                scores[
+                    "test_precision_macro"
+                ].mean()
+            )
 
-            recall = scores[
-                "test_recall_macro"
-            ].mean()
+            recall = (
+                scores[
+                    "test_recall_macro"
+                ].mean()
+            )
 
-            f1 = scores[
-                "test_f1_macro"
-            ].mean()
+            f1 = (
+                scores[
+                    "test_f1_macro"
+                ].mean()
+            )
 
             print(
                 f"Accuracy : {accuracy:.4f}"
@@ -284,78 +481,128 @@ def compare_models(train_df):
             )
 
             results.append({
-                "feature_set": feature_name,
-                "model": model_name,
-                "accuracy": accuracy,
-                "precision": precision,
-                "recall": recall,
-                "f1": f1
+
+                "feature_set":
+                    feature_name,
+
+                "model":
+                    model_name,
+
+                "accuracy":
+                    accuracy,
+
+                "precision":
+                    precision,
+
+                "recall":
+                    recall,
+
+                "f1":
+                    f1
             })
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(
+        results
+    )
 
 
 # ============================================================
 # SAVE RESULTS
 # ============================================================
 
-def save_results(results):
+def save_results(
+    results
+):
 
     results = results.sort_values(
+
         by="f1",
+
         ascending=False
     )
 
     output_path = (
-        "data/processed/"
-        "classification_results.csv"
+        RESULTS_DIR
+        / "classification_results.csv"
     )
 
     results.to_csv(
+
         output_path,
+
         index=False
     )
 
     print(
-        f"\nResults saved to: {output_path}"
+        "\n" + "=" * 60
     )
 
     print(
-        "\nMODEL RANKING:"
+        "CLASSIFICATION MODEL RANKING"
     )
 
     print(
-        results.to_string(index=False)
+        "=" * 60
+    )
+
+    print(
+        results.to_string(
+            index=False
+        )
+    )
+
+    print(
+        "\nResults saved to:"
+    )
+
+    print(
+        output_path
     )
 
     return results
 
 
 # ============================================================
-# TRAIN BEST MODEL
+# TRAIN BEST CLASSIFIER
 # ============================================================
 
 def train_best_model(
+
     train_df,
+
     best_feature_set,
+
     best_model_name
 ):
 
-    feature_config = create_feature_configs()[
-        best_feature_set
-    ]
+    feature_config = (
+        create_feature_configs()
+        [best_feature_set]
+    )
 
-    model = create_models()[
-        best_model_name
-    ]
+    model = (
+        create_models()
+        [best_model_name]
+    )
 
     pipeline = create_pipeline(
+
         feature_config,
+
         model
     )
 
-    X_train = train_df[CHANNELS]
-    y_train = train_df[TARGET]
+    X_train = train_df[
+        CHANNELS
+    ]
+
+    y_train = train_df[
+        TARGET
+    ]
+
+    print(
+        "\nTraining final classifier..."
+    )
 
     pipeline.fit(
         X_train,
@@ -363,18 +610,23 @@ def train_best_model(
     )
 
     model_path = (
-        "data/processed/"
-        "best_classifier.joblib"
+        MODEL_DIR
+        / "best_classifier.joblib"
     )
 
     joblib.dump(
+
         pipeline,
+
         model_path
     )
 
     print(
-        f"\nBest classifier saved to: "
-        f"{model_path}"
+        "\nBest classifier saved to:"
+    )
+
+    print(
+        model_path
     )
 
     return pipeline
@@ -386,36 +638,60 @@ def train_best_model(
 
 if __name__ == "__main__":
 
-    train_df, test_df = load_data()
+    # --------------------------------------------------------
+    # Load
+    # --------------------------------------------------------
+
+    train_df, test_df = (
+        load_data()
+    )
 
     # --------------------------------------------------------
-    # Compare feature sets + classifiers
+    # Model comparison
     # --------------------------------------------------------
 
     results = compare_models(
         train_df
     )
 
+    # --------------------------------------------------------
+    # Save comparison
+    # --------------------------------------------------------
+
     results = save_results(
         results
     )
 
     # --------------------------------------------------------
-    # Select best combination using CV F1 score
+    # Select best model
     # --------------------------------------------------------
 
-    best_row = results.iloc[0]
+    best_row = (
+        results.iloc[0]
+    )
 
     best_feature_set = (
-        best_row["feature_set"]
+        best_row[
+            "feature_set"
+        ]
     )
 
     best_model_name = (
-        best_row["model"]
+        best_row[
+            "model"
+        ]
     )
 
     print(
-        "\nBEST COMBINATION"
+        "\n" + "=" * 60
+    )
+
+    print(
+        "BEST CLASSIFICATION MODEL"
+    )
+
+    print(
+        "=" * 60
     )
 
     print(
@@ -434,11 +710,18 @@ if __name__ == "__main__":
     )
 
     # --------------------------------------------------------
-    # Train best model on complete training data
+    # Train final classifier
     # --------------------------------------------------------
 
     best_pipeline = train_best_model(
+
         train_df,
+
         best_feature_set,
+
         best_model_name
+    )
+
+    print(
+        "\nClassification training completed."
     )

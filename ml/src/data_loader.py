@@ -2,7 +2,7 @@
 
 import pandas as pd
 from pathlib import Path
-from config import PROCESSED_DATA_PATH
+from config import DATASET_PATH 
 
 
 def load_data(path=None):
@@ -13,7 +13,7 @@ def load_data(path=None):
     - ASD pipeline-test data
     - real AS7262 hardware data
     """
-    file_path = Path(path) if path else Path(PROCESSED_DATA_PATH)
+    file_path = Path(path) if path else Path(DATASET_PATH)
 
     if not file_path.exists():
         raise FileNotFoundError(

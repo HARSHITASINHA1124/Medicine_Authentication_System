@@ -6,13 +6,13 @@ from sklearn.model_selection import StratifiedGroupKFold
 # CONFIGURATION
 # --------------------------------------------------
 
-DATA_PATH = "data/processed/medicines_as7262.csv"
+DATA_PATH = "data/processed/medicines_as7262_pipeline_test.csv"
 
 TRAIN_PATH = "data/processed/train.csv"
 TEST_PATH = "data/processed/test.csv"
 
 RANDOM_STATE = 42
-N_SPLITS = 5
+N_SPLITS = 3
 
 
 # --------------------------------------------------

@@ -1,44 +1,41 @@
 """
-ml_inference.py
-===============
+Raspberry Pi ML Inference Pipeline
+==================================
 
-Production ML inference pipeline for the Raspberry Pi.
-
-Input:
-    10 AS7262 readings for one physical medicine scan.
+Production inference pipeline for the Medicine Authentication System.
 
 Flow:
-    10 readings
-        ↓
-    validation
-        ↓
-    median aggregation
-        ↓
-    classification
-        ↓
-    predicted medicine + confidence
-        ↓
-    anomaly detection
-        ↓
-    medicine-specific thresholds
-        ↓
-    final decision
-        ↓
-    explainability
 
-Output:
-{
-    "medicine": "...",
-    "classification_confidence": 0.94,
-    "anomaly_score": 3.21,
-    "classification_status": "HIGH",
-    "anomaly_status": "GENUINE",
-    "final_status": "GENUINE",
-    ...
-}
-
-This file performs inference only.
-It does NOT train models.
+    10 AS7262 readings
+            |
+            v
+    Scan aggregation
+            |
+            v
+    Classification
+            |
+            +----> medicine
+            |
+            +----> classification confidence
+            |
+            v
+    Medicine-aware anomaly detection
+            |
+            v
+    Mahalanobis anomaly score
+            |
+            v
+    Medicine-specific thresholds
+            |
+            v
+    Final decision
+            |
+            +----> GENUINE
+            +----> SUSPICIOUS
+            +----> COUNTERFEIT
+            |
+            v
+    Explainability
 """
 
 from pathlib import Path
@@ -57,33 +54,60 @@ import joblib
 ML_DIR = Path(__file__).resolve().parent
 
 SRC_DIR = ML_DIR / "src"
-MODEL_DIR = ML_DIR / "models"
+MODELS_DIR = ML_DIR / "models"
 
-# The saved classifier contains the custom
-# AS7262Preprocessor class from src/preprocessing.py.
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-
-# ============================================================
-# MODEL FILES
-# ============================================================
 
 CLASSIFIER_PATH = (
-    MODEL_DIR / "best_classifier.joblib"
+    MODELS_DIR /
+    "best_classifier.joblib"
 )
 
 ANOMALY_MODEL_PATH = (
-    MODEL_DIR / "anomaly_model.joblib"
+    MODELS_DIR /
+    "anomaly_model.joblib"
 )
 
-THRESHOLDS_PATH = (
-    MODEL_DIR / "anomaly_thresholds.joblib"
+ANOMALY_THRESHOLDS_PATH = (
+    MODELS_DIR /
+    "anomaly_thresholds.joblib"
 )
 
 
 # ============================================================
-# AS7262 CONFIGURATION
+# MAKE CUSTOM PREPROCESSOR IMPORTABLE
+# ============================================================
+
+if str(SRC_DIR) not in sys.path:
+
+    sys.path.insert(
+        0,
+        str(SRC_DIR)
+    )
+
+
+# IMPORTANT:
+#
+# The saved joblib files contain references to:
+#
+#     preprocessing.AS7262Preprocessor
+#
+# Therefore preprocessing must be importable BEFORE
+# joblib.load() is called.
+
+try:
+
+    import preprocessing
+
+except ImportError as exc:
+
+    raise ImportError(
+        "Could not import preprocessing.py. "
+        f"Expected it at: {SRC_DIR / 'preprocessing.py'}"
+    ) from exc
+
+
+# ============================================================
+# CONFIGURATION
 # ============================================================
 
 CHANNELS = [
@@ -95,120 +119,118 @@ CHANNELS = [
     "ch650"
 ]
 
-EXPECTED_READINGS = 10
+
+# ------------------------------------------------------------
+# Number of readings returned by Raspberry Pi per scan
+# ------------------------------------------------------------
+
+READINGS_PER_SCAN = 10
+
+
+# ------------------------------------------------------------
+# Classification confidence thresholds
+# ------------------------------------------------------------
+
+CLASSIFICATION_HIGH_THRESHOLD = 0.80
+CLASSIFICATION_MEDIUM_THRESHOLD = 0.60
+
+
+# ------------------------------------------------------------
+# Unknown / very-low classification confidence
+# ------------------------------------------------------------
+
+CLASSIFICATION_UNKNOWN_THRESHOLD = 0.40
 
 
 # ============================================================
-# CLASSIFICATION THRESHOLDS
-# ============================================================
-
-LOW_CLASSIFICATION_CONFIDENCE = 0.60
-
-HIGH_CLASSIFICATION_CONFIDENCE = 0.80
-
-
-# ============================================================
-# GLOBAL MODEL OBJECTS
-# ============================================================
-
-_classifier = None
-_anomaly_model = None
-_thresholds = None
-
-
-# ============================================================
-# LOAD MODELS
+# MODEL LOADING
 # ============================================================
 
 def load_models():
     """
-    Load all trained model artifacts.
-
-    Models are loaded once and reused.
+    Load all ML artifacts required for inference.
     """
 
-    global _classifier
-    global _anomaly_model
-    global _thresholds
-
     # --------------------------------------------------------
-    # CLASSIFIER
+    # Check classifier
     # --------------------------------------------------------
 
     if not CLASSIFIER_PATH.exists():
 
         raise FileNotFoundError(
-            f"Classifier model not found:\n"
+            "Classifier model not found:\n"
             f"{CLASSIFIER_PATH}"
         )
 
-    _classifier = joblib.load(
-        CLASSIFIER_PATH
-    )
-
     # --------------------------------------------------------
-    # ANOMALY MODEL
+    # Check anomaly model
     # --------------------------------------------------------
 
     if not ANOMALY_MODEL_PATH.exists():
 
         raise FileNotFoundError(
-            f"Anomaly model not found:\n"
+            "Anomaly model not found:\n"
             f"{ANOMALY_MODEL_PATH}"
         )
 
-    _anomaly_model = joblib.load(
+    # --------------------------------------------------------
+    # Check thresholds
+    # --------------------------------------------------------
+
+    if not ANOMALY_THRESHOLDS_PATH.exists():
+
+        raise FileNotFoundError(
+            "Anomaly threshold file not found:\n"
+            f"{ANOMALY_THRESHOLDS_PATH}"
+        )
+
+    print(
+        "Loading ML models..."
+    )
+
+    classifier = joblib.load(
+        CLASSIFIER_PATH
+    )
+
+    anomaly_model = joblib.load(
         ANOMALY_MODEL_PATH
     )
 
-    # --------------------------------------------------------
-    # ANOMALY THRESHOLDS
-    # --------------------------------------------------------
-
-    if not THRESHOLDS_PATH.exists():
-
-        raise FileNotFoundError(
-            f"Anomaly threshold file not found:\n"
-            f"{THRESHOLDS_PATH}"
+    anomaly_thresholds = joblib.load(
+            ANOMALY_THRESHOLDS_PATH
         )
 
-    _thresholds = joblib.load(
-        THRESHOLDS_PATH
-    )
-
     # --------------------------------------------------------
-    # Validate threshold structure
+    # Validate anomaly model
     # --------------------------------------------------------
 
     if not isinstance(
-        _thresholds,
+        anomaly_model,
         dict
     ):
 
         raise ValueError(
-            "anomaly_thresholds.joblib must contain "
-            "a dictionary."
+            "anomaly_model.joblib must contain "
+            "the medicine-aware anomaly model dictionary."
         )
 
-    if "profiles" not in _thresholds:
+    if anomaly_model.get(
+        "model_type"
+    ) != "medicine_aware_mahalanobis":
 
         raise ValueError(
-            "anomaly_thresholds.joblib does not contain "
-            "a 'profiles' section."
-        )
-
-    if not isinstance(
-        _thresholds["profiles"],
-        dict
-    ):
-
-        raise ValueError(
-            "'profiles' inside anomaly_thresholds.joblib "
-            "must be a dictionary."
+            "Unsupported anomaly model type: "
+            f"{anomaly_model.get('model_type')}"
         )
 
     print(
         "ML models loaded successfully."
+    )
+
+    return (
+        classifier,
+        anomaly_model,
+        anomaly_thresholds
     )
 
 
@@ -221,17 +243,6 @@ def validate_reading(
 ):
     """
     Validate one AS7262 reading.
-
-    Expected:
-
-    {
-        "ch450": value,
-        "ch500": value,
-        "ch550": value,
-        "ch570": value,
-        "ch600": value,
-        "ch650": value
-    }
     """
 
     if not isinstance(
@@ -239,7 +250,7 @@ def validate_reading(
         dict
     ):
 
-        raise TypeError(
+        raise ValueError(
             "Each reading must be a dictionary."
         )
 
@@ -252,17 +263,19 @@ def validate_reading(
     if missing:
 
         raise ValueError(
-            "Missing AS7262 channels: "
-            + ", ".join(missing)
+            "Reading is missing AS7262 channels: "
+            f"{missing}"
         )
+
+    values = []
 
     for channel in CHANNELS:
 
+        value = reading[channel]
+
         try:
 
-            value = float(
-                reading[channel]
-            )
+            value = float(value)
 
         except (
             TypeError,
@@ -270,290 +283,229 @@ def validate_reading(
         ):
 
             raise ValueError(
-                f"{channel} must contain "
-                f"a numeric value."
+                f"Invalid value for {channel}: "
+                f"{value}"
             )
 
         if not np.isfinite(value):
 
             raise ValueError(
-                f"{channel} contains "
-                f"an invalid value."
+                f"Invalid non-finite value for "
+                f"{channel}: {value}"
             )
 
+        values.append(value)
 
-def validate_readings(
+    return values
+
+
+# ============================================================
+# SCAN AGGREGATION
+# ============================================================
+
+def aggregate_scan(
     readings
 ):
     """
-    Validate the complete scan.
+    Convert 10 Raspberry Pi readings into one scan.
+
+    Input:
+
+        [
+            {
+                "ch450": ...,
+                "ch500": ...,
+                ...
+            },
+            ...
+        ]
+
+    Output:
+
+        {
+            "ch450": average,
+            "ch500": average,
+            ...
+        }
+
+    Median is also calculated internally to detect
+    unusually noisy readings.
     """
 
-    if not isinstance(
-        readings,
-        list
-    ):
-
-        raise TypeError(
-            "readings must be a list."
-        )
-
-    if len(readings) != EXPECTED_READINGS:
+    if not readings:
 
         raise ValueError(
-            f"Expected {EXPECTED_READINGS} "
-            f"readings but received "
-            f"{len(readings)}."
+            "No readings supplied."
         )
+
+    validated = []
 
     for reading in readings:
 
-        validate_reading(
-            reading
+        validated.append(
+            validate_reading(
+                reading
+            )
         )
 
-
-# ============================================================
-# AGGREGATE 10 READINGS
-# ============================================================
-
-def aggregate_readings(
-    readings
-):
-    """
-    Convert 10 AS7262 measurements into
-    one representative six-channel scan.
-
-    Median is used because it is less sensitive
-    to occasional sensor spikes than the mean.
-    """
-
-    validate_readings(
-        readings
+    X = np.asarray(
+        validated,
+        dtype=float
     )
 
-    df = pd.DataFrame(
-        readings,
-        columns=CHANNELS
+    means = np.mean(
+        X,
+        axis=0
     )
 
-    # --------------------------------------------------------
-    # Median spectrum
-    # --------------------------------------------------------
-
-    median_values = (
-        df[CHANNELS]
-        .median()
+    medians = np.median(
+        X,
+        axis=0
     )
 
-    spectrum = {
+    stds = np.std(
+        X,
+        axis=0
+    )
+
+    aggregated = {
         channel: float(
-            median_values[channel]
+            means[index]
         )
-        for channel in CHANNELS
+
+        for index, channel
+        in enumerate(CHANNELS)
     }
 
     # --------------------------------------------------------
-    # Mean
+    # Measurement stability
     # --------------------------------------------------------
 
-    mean_values = (
-        df[CHANNELS]
-        .mean()
-    )
+    channel_cv = []
 
-    mean_spectrum = {
-        channel: float(
-            mean_values[channel]
-        )
-        for channel in CHANNELS
-    }
+    for index in range(
+        len(CHANNELS)
+    ):
 
-    # --------------------------------------------------------
-    # Standard deviation
-    # --------------------------------------------------------
-
-    std_values = (
-        df[CHANNELS]
-        .std(
-            ddof=1
-        )
-    )
-
-    std_spectrum = {
-        channel: float(
-            std_values[channel]
-        )
-        for channel in CHANNELS
-    }
-
-    # --------------------------------------------------------
-    # Coefficient of variation
-    # --------------------------------------------------------
-
-    cv_spectrum = {}
-
-    for channel in CHANNELS:
-
-        median = abs(
-            spectrum[channel]
+        mean_value = abs(
+            means[index]
         )
 
-        std = std_spectrum[channel]
+        std_value = stds[index]
 
-        if median > 0:
+        if mean_value > 1e-12:
 
-            cv = std / median
+            cv = (
+                std_value /
+                mean_value
+            )
 
         else:
 
-            cv = np.inf
+            cv = 0.0
 
-        cv_spectrum[channel] = float(
+        channel_cv.append(
             cv
         )
 
-    finite_cvs = [
-        value
-        for value in cv_spectrum.values()
-        if np.isfinite(value)
-    ]
+    stability_cv = float(
+        np.mean(channel_cv)
+    )
 
-    if finite_cvs:
-
-        max_cv = max(
-            finite_cvs
-        )
-
-    else:
-
-        max_cv = np.inf
-
-    # --------------------------------------------------------
-    # Quality indicator
-    # --------------------------------------------------------
-
-    scan_quality = {
-
-        "number_of_readings":
-            len(readings),
-
-        "stable":
-            bool(max_cv <= 0.10),
-
-        "max_coefficient_of_variation":
-            float(max_cv),
-
-        "mean":
-            mean_spectrum,
-
-        "standard_deviation":
-            std_spectrum,
-
-        "coefficient_of_variation":
-            cv_spectrum
+    return {
+        "aggregated_reading": aggregated,
+        "mean": means,
+        "median": medians,
+        "std": stds,
+        "stability_cv": stability_cv,
+        "n_readings": len(readings)
     }
-
-    return (
-        spectrum,
-        scan_quality
-    )
-
-
-# ============================================================
-# CREATE MODEL INPUT
-# ============================================================
-
-def create_model_input(
-    spectrum
-):
-    """
-    Convert the aggregated six-channel spectrum
-    into a DataFrame.
-
-    The saved classifier pipeline contains the
-    preprocessing and feature engineering steps.
-    """
-
-    validate_reading(
-        spectrum
-    )
-
-    X = pd.DataFrame(
-        [[
-            spectrum[channel]
-            for channel in CHANNELS
-        ]],
-        columns=CHANNELS
-    )
-
-    return X
 
 
 # ============================================================
 # CLASSIFICATION
 # ============================================================
 
-def classify_sample(
-    X
+def classify_scan(
+    aggregated_reading,
+    classifier
 ):
     """
-    Predict medicine and classification confidence.
+    Classify the aggregated spectral scan.
+
+    Returns:
+
+        medicine
+        confidence
+        probabilities
+        classification_status
     """
 
-    if _classifier is None:
+    X = pd.DataFrame(
+        [
+            [
+                aggregated_reading[
+                    channel
+                ]
 
-        load_models()
+                for channel in CHANNELS
+            ]
+        ],
+        columns=CHANNELS
+    )
 
     # --------------------------------------------------------
     # Prediction
     # --------------------------------------------------------
 
-    prediction = (
-        _classifier.predict(X)
+    prediction = classifier.predict(
+        X
     )
 
-    predicted_medicine = str(
+    medicine = str(
         prediction[0]
     )
 
     # --------------------------------------------------------
-    # Probability
+    # Classification probability
     # --------------------------------------------------------
 
     probabilities = {}
-    confidence = None
 
     if hasattr(
-        _classifier,
+        classifier,
         "predict_proba"
     ):
 
         probability_array = (
-            _classifier
-            .predict_proba(X)[0]
+            classifier.predict_proba(X)
         )
 
-        classes = (
-            _classifier.classes_
-        )
+        classes = classifier.classes_
 
         probabilities = {
-            str(class_name): float(
-                probability
+            str(classes[index]):
+            float(
+                probability_array[
+                    0,
+                    index
+                ]
             )
-            for class_name, probability
-            in zip(
-                classes,
-                probability_array
+
+            for index in range(
+                len(classes)
             )
         }
 
         confidence = float(
             np.max(
-                probability_array
+                probability_array[0]
             )
         )
+
+    else:
+
+        confidence = None
 
     # --------------------------------------------------------
     # Classification status
@@ -561,114 +513,368 @@ def classify_sample(
 
     if confidence is None:
 
-        status = "UNKNOWN"
+        classification_status = (
+            "UNKNOWN"
+        )
 
     elif (
-        confidence
-        >= HIGH_CLASSIFICATION_CONFIDENCE
+        confidence >=
+        CLASSIFICATION_HIGH_THRESHOLD
     ):
 
-        status = "HIGH"
+        classification_status = (
+            "HIGH"
+        )
 
     elif (
-        confidence
-        >= LOW_CLASSIFICATION_CONFIDENCE
+        confidence >=
+        CLASSIFICATION_MEDIUM_THRESHOLD
     ):
 
-        status = "MEDIUM"
+        classification_status = (
+            "MEDIUM"
+        )
 
     else:
 
-        status = "LOW"
+        classification_status = (
+            "LOW"
+        )
 
     return {
-
-        "predicted_medicine":
-            predicted_medicine,
-
-        "confidence":
-            confidence,
-
-        "status":
-            status,
-
-        "probabilities":
-            probabilities
+        "medicine": medicine,
+        "confidence": confidence,
+        "probabilities": probabilities,
+        "classification_status":
+            classification_status
     }
 
 
 # ============================================================
-# MEDICINE-AWARE THRESHOLD LOOKUP
+# ENGINEERED FEATURES
 # ============================================================
 
-def get_medicine_thresholds(
-    medicine
+def create_engineered_features(
+    aggregated_reading,
+    anomaly_model
 ):
     """
-    Read medicine-specific thresholds.
+    Use the EXACT preprocessor saved inside
+    anomaly_model.joblib.
 
-    Actual artifact structure:
-
-    {
-        "version": "2.0",
-        "description": "...",
-        "profiles": {
-            "MDMA": {
-                "genuine_threshold": ...,
-                "counterfeit_threshold": ...
-            }
-        }
-    }
-
-    Returns None if no profile exists.
+    This is important because the anomaly thresholds
+    were generated using this preprocessing pipeline.
     """
 
-    if _thresholds is None:
+    preprocessor = anomaly_model.get(
+        "preprocessor"
+    )
 
-        load_models()
+    if preprocessor is None:
 
-    profiles = _thresholds.get(
+        raise ValueError(
+            "Anomaly model does not contain "
+            "a saved preprocessor."
+        )
+
+    X_raw = pd.DataFrame(
+        [
+            [
+                aggregated_reading[
+                    channel
+                ]
+
+                for channel in CHANNELS
+            ]
+        ],
+        columns=CHANNELS
+    )
+
+    X_engineered = (
+        preprocessor.transform(
+            X_raw
+        )
+    )
+
+    feature_names = anomaly_model.get(
+        "feature_names"
+    )
+
+    if feature_names is None:
+
+        feature_names = (
+            preprocessor
+            .get_feature_names_out()
+        )
+
+    if X_engineered.shape[1] != len(
+        feature_names
+    ):
+
+        raise ValueError(
+            "Engineered feature count does not "
+            "match the anomaly model."
+        )
+
+    return (
+        X_engineered,
+        list(feature_names)
+    )
+
+
+# ============================================================
+# MAHALANOBIS ANOMALY SCORE
+# ============================================================
+
+def calculate_anomaly_score(
+    X_engineered,
+    medicine,
+    anomaly_model
+):
+    """
+    Calculate the medicine-aware Mahalanobis distance.
+
+    The anomaly model contains:
+
+        medicine_profiles[medicine]
+            |
+            +-- StandardScaler
+            |
+            +-- EmpiricalCovariance
+
+    The score is:
+
+        sqrt(
+            (x - mean)^T
+            precision
+            (x - mean)
+        )
+    """
+
+    if not isinstance(
+        anomaly_model,
+        dict
+    ):
+
+        raise ValueError(
+            "Anomaly model must be a dictionary."
+        )
+
+    profiles = anomaly_model.get(
+        "medicine_profiles",
+        {}
+    )
+
+    if medicine not in profiles:
+
+        raise ValueError(
+            f"No anomaly profile found for "
+            f"medicine '{medicine}'. "
+            f"Available profiles: "
+            f"{list(profiles.keys())}"
+        )
+
+    profile = profiles[
+        medicine
+    ]
+
+    scaler = profile.get(
+        "scaler"
+    )
+
+    covariance = profile.get(
+        "covariance"
+    )
+
+    if scaler is None:
+
+        raise ValueError(
+            f"No scaler found for medicine "
+            f"'{medicine}'."
+        )
+
+    if covariance is None:
+
+        raise ValueError(
+            f"No covariance model found for "
+            f"medicine '{medicine}'."
+        )
+
+    X = np.asarray(
+        X_engineered,
+        dtype=float
+    )
+
+    if X.ndim == 1:
+
+        X = X.reshape(
+            1,
+            -1
+        )
+
+    # --------------------------------------------------------
+    # Medicine-specific scaling
+    # --------------------------------------------------------
+
+    X_scaled = scaler.transform(
+        X
+    )
+
+    # --------------------------------------------------------
+    # Mahalanobis distance
+    # --------------------------------------------------------
+
+    if hasattr(
+        covariance,
+        "mahalanobis"
+    ):
+
+        distances_squared = (
+            covariance.mahalanobis(
+                X_scaled
+            )
+        )
+
+    else:
+
+        mean = covariance.location_
+
+        precision = (
+            covariance.precision_
+        )
+
+        centered = (
+            X_scaled - mean
+        )
+
+        distances_squared = (
+            np.einsum(
+                "ij,jk,ik->i",
+                centered,
+                precision,
+                centered
+            )
+        )
+
+    distances_squared = np.maximum(
+        distances_squared,
+        0
+    )
+
+    scores = np.sqrt(
+        distances_squared
+    )
+
+    if len(scores) == 1:
+
+        return float(
+            scores[0]
+        )
+
+    return scores
+
+
+# ============================================================
+# THRESHOLD LOOKUP
+# ============================================================
+
+def get_anomaly_thresholds(
+    medicine,
+    anomaly_thresholds
+):
+    """
+    Get medicine-specific anomaly thresholds.
+    """
+
+    # --------------------------------------------------------
+    # Current threshold format:
+    #
+    # {
+    #   "version": "2.0",
+    #   "profiles": {
+    #       "MDMA": {
+    #           "genuine_threshold": ...,
+    #           "counterfeit_threshold": ...
+    #       }
+    #   }
+    # }
+    # --------------------------------------------------------
+
+    if not isinstance(
+        anomaly_thresholds,
+        dict
+    ):
+
+        raise ValueError(
+            "Invalid anomaly threshold object."
+        )
+
+    profiles = anomaly_thresholds.get(
         "profiles",
         {}
     )
 
     if medicine not in profiles:
 
-        return None
+        raise ValueError(
+            f"No anomaly thresholds found "
+            f"for medicine '{medicine}'. "
+            f"Available medicines: "
+            f"{list(profiles.keys())}"
+        )
 
     profile = profiles[
         medicine
     ]
 
-    genuine_threshold = (
-        profile.get(
-            "genuine_threshold"
-        )
+    genuine_threshold = profile.get(
+        "genuine_threshold"
     )
 
-    counterfeit_threshold = (
-        profile.get(
-            "counterfeit_threshold"
+    counterfeit_threshold = profile.get(
+        "counterfeit_threshold"
+    )
+
+    if genuine_threshold is None:
+
+        raise ValueError(
+            f"Missing genuine threshold for "
+            f"medicine '{medicine}'."
         )
+
+    if counterfeit_threshold is None:
+
+        raise ValueError(
+            f"Missing counterfeit threshold for "
+            f"medicine '{medicine}'."
+        )
+
+    genuine_threshold = float(
+        genuine_threshold
+    )
+
+    counterfeit_threshold = float(
+        counterfeit_threshold
     )
 
     if (
-        genuine_threshold is None
-        or counterfeit_threshold is None
+        counterfeit_threshold <
+        genuine_threshold
     ):
 
         raise ValueError(
-            f"Incomplete anomaly threshold "
-            f"profile for medicine '{medicine}'."
+            f"Invalid thresholds for "
+            f"medicine '{medicine}': "
+            "counterfeit threshold is below "
+            "genuine threshold."
         )
 
     return {
-
         "genuine_threshold":
-            float(genuine_threshold),
+            genuine_threshold,
 
         "counterfeit_threshold":
-            float(counterfeit_threshold),
+            counterfeit_threshold,
 
         "genuine_percentile":
             profile.get(
@@ -688,101 +894,6 @@ def get_medicine_thresholds(
 
 
 # ============================================================
-# ANOMALY SCORE
-# ============================================================
-
-def calculate_anomaly_score(
-    X
-):
-    """
-    Calculate anomaly score.
-
-    Supports common sklearn anomaly models:
-
-        decision_function()
-        score_samples()
-
-    For sklearn's IsolationForest-style models,
-    larger decision_function values indicate more
-    normal observations.
-
-    Therefore the score is inverted so that:
-
-        LOW score  = more normal
-        HIGH score = more anomalous
-
-    This matches the project's threshold convention.
-    """
-
-    if _anomaly_model is None:
-
-        load_models()
-
-    # --------------------------------------------------------
-    # decision_function
-    # --------------------------------------------------------
-
-    if hasattr(
-        _anomaly_model,
-        "decision_function"
-    ):
-
-        raw_score = (
-            _anomaly_model
-            .decision_function(X)
-        )
-
-        raw_score = float(
-            np.asarray(
-                raw_score
-            ).reshape(-1)[0]
-        )
-
-        anomaly_score = -raw_score
-
-    # --------------------------------------------------------
-    # score_samples
-    # --------------------------------------------------------
-
-    elif hasattr(
-        _anomaly_model,
-        "score_samples"
-    ):
-
-        raw_score = (
-            _anomaly_model
-            .score_samples(X)
-        )
-
-        raw_score = float(
-            np.asarray(
-                raw_score
-            ).reshape(-1)[0]
-        )
-
-        anomaly_score = -raw_score
-
-    else:
-
-        raise ValueError(
-            "The anomaly model does not provide "
-            "decision_function() or score_samples()."
-        )
-
-    if not np.isfinite(
-        anomaly_score
-    ):
-
-        raise ValueError(
-            "Anomaly model returned an invalid score."
-        )
-
-    return float(
-        anomaly_score
-    )
-
-
-# ============================================================
 # ANOMALY STATUS
 # ============================================================
 
@@ -796,6 +907,189 @@ def determine_anomaly_status(
         GENUINE
         SUSPICIOUS
         COUNTERFEIT
+
+    Logic:
+
+        score <= genuine threshold
+            -> GENUINE
+
+        genuine < score < counterfeit
+            -> SUSPICIOUS
+
+        score >= counterfeit threshold
+            -> COUNTERFEIT
+    """
+
+    genuine_threshold = (
+        thresholds[
+            "genuine_threshold"
+        ]
+    )
+
+    counterfeit_threshold = (
+        thresholds[
+            "counterfeit_threshold"
+        ]
+    )
+
+    if (
+        anomaly_score <=
+        genuine_threshold
+    ):
+
+        return "GENUINE"
+
+    elif (
+        anomaly_score <
+        counterfeit_threshold
+    ):
+
+        return "SUSPICIOUS"
+
+    else:
+
+        return "COUNTERFEIT"
+
+
+# ============================================================
+# FINAL DECISION
+# ============================================================
+
+def determine_final_status(
+    classification_confidence,
+    classification_status,
+    anomaly_status
+):
+    """
+    Combine classification confidence and anomaly result.
+
+    Main decision logic:
+
+    1. Very-low classification confidence
+       -> SUSPICIOUS
+
+    2. HIGH classification + GENUINE anomaly
+       -> GENUINE
+
+    3. HIGH classification + SUSPICIOUS anomaly
+       -> SUSPICIOUS
+
+    4. HIGH classification + COUNTERFEIT anomaly
+       -> COUNTERFEIT
+
+    5. MEDIUM classification
+       -> cannot be confidently authenticated
+       -> SUSPICIOUS unless anomaly is strongly counterfeit
+
+    6. LOW classification
+       -> SUSPICIOUS
+
+    The anomaly layer is therefore allowed to catch a
+    counterfeit even when the classifier recognizes the
+    medicine with high confidence.
+    """
+
+    # --------------------------------------------------------
+    # Classification confidence unavailable
+    # --------------------------------------------------------
+
+    if classification_confidence is None:
+
+        if anomaly_status == "COUNTERFEIT":
+
+            return "COUNTERFEIT"
+
+        return "SUSPICIOUS"
+
+    # --------------------------------------------------------
+    # Very low classification confidence
+    # --------------------------------------------------------
+
+    if (
+        classification_confidence <
+        CLASSIFICATION_UNKNOWN_THRESHOLD
+    ):
+
+        return "SUSPICIOUS"
+
+    # --------------------------------------------------------
+    # HIGH classification confidence
+    # --------------------------------------------------------
+
+    if (
+        classification_status ==
+        "HIGH"
+    ):
+
+        if anomaly_status == "GENUINE":
+
+            return "GENUINE"
+
+        if anomaly_status == "SUSPICIOUS":
+
+            return "SUSPICIOUS"
+
+        if anomaly_status == "COUNTERFEIT":
+
+            return "COUNTERFEIT"
+
+    # --------------------------------------------------------
+    # MEDIUM classification confidence
+    # --------------------------------------------------------
+
+    if (
+        classification_status ==
+        "MEDIUM"
+    ):
+
+        if anomaly_status == "COUNTERFEIT":
+
+            return "COUNTERFEIT"
+
+        return "SUSPICIOUS"
+
+    # --------------------------------------------------------
+    # LOW classification confidence
+    # --------------------------------------------------------
+
+    if (
+        classification_status ==
+        "LOW"
+    ):
+
+        if anomaly_status == "COUNTERFEIT":
+
+            return "COUNTERFEIT"
+
+        return "SUSPICIOUS"
+
+    # --------------------------------------------------------
+    # Safety fallback
+    # --------------------------------------------------------
+
+    return "SUSPICIOUS"
+
+
+# ============================================================
+# EXPLAINABILITY
+# ============================================================
+
+def generate_explainability(
+    aggregated_reading,
+    classification_result,
+    anomaly_score,
+    anomaly_status,
+    thresholds,
+    feature_values,
+    feature_names,
+    stability_cv
+):
+    """
+    Generate human-readable explanation data.
+
+    This is intended to be returned to the backend/frontend
+    so the UI can explain why a medicine was classified
+    as genuine, suspicious, or counterfeit.
     """
 
     genuine_threshold = (
@@ -811,496 +1105,373 @@ def determine_anomaly_status(
     )
 
     # --------------------------------------------------------
-    # Genuine
+    # Distance from thresholds
     # --------------------------------------------------------
 
-    if (
-        anomaly_score
-        <= genuine_threshold
-    ):
-
-        return "GENUINE"
-
-    # --------------------------------------------------------
-    # Suspicious
-    # --------------------------------------------------------
-
-    if (
-        anomaly_score
-        < counterfeit_threshold
-    ):
-
-        return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # Counterfeit
-    # --------------------------------------------------------
-
-    return "COUNTERFEIT"
-
-
-# ============================================================
-# FINAL DECISION
-# ============================================================
-
-def determine_final_status(
-    classification,
-    anomaly_status
-):
-    """
-    Combine classification confidence and anomaly status.
-
-    Logic:
-
-    LOW classification confidence
-        -> SUSPICIOUS
-
-    classification sufficient +
-    anomaly GENUINE
-        -> GENUINE
-
-    anomaly SUSPICIOUS
-        -> SUSPICIOUS
-
-    anomaly COUNTERFEIT
-        -> COUNTERFEIT
-
-    No anomaly reference
-        -> SUSPICIOUS
-    """
-
-    confidence = (
-        classification[
-            "confidence"
-        ]
+    distance_from_genuine = (
+        anomaly_score -
+        genuine_threshold
     )
 
-    # --------------------------------------------------------
-    # No classification confidence
-    # --------------------------------------------------------
-
-    if confidence is None:
-
-        return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # Very low classification confidence
-    # --------------------------------------------------------
-
-    if (
-        confidence
-        < LOW_CLASSIFICATION_CONFIDENCE
-    ):
-
-        return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # No anomaly reference
-    # --------------------------------------------------------
-
-    if anomaly_status == "NO_REFERENCE":
-
-        return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # Very high anomaly
-    # --------------------------------------------------------
-
-    if anomaly_status == "COUNTERFEIT":
-
-        return "COUNTERFEIT"
-
-    # --------------------------------------------------------
-    # Moderate anomaly
-    # --------------------------------------------------------
-
-    if anomaly_status == "SUSPICIOUS":
-
-        return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # Normal anomaly
-    # --------------------------------------------------------
-
-    if anomaly_status == "GENUINE":
-
-        return "GENUINE"
-
-    return "SUSPICIOUS"
-
-
-# ============================================================
-# CHANNEL EXPLAINABILITY
-# ============================================================
-
-def calculate_channel_statistics(
-    readings
-):
-    """
-    Calculate statistics for all ten readings.
-    """
-
-    df = pd.DataFrame(
-        readings,
-        columns=CHANNELS
+    distance_from_counterfeit = (
+        anomaly_score -
+        counterfeit_threshold
     )
-
-    result = {}
-
-    for channel in CHANNELS:
-
-        values = (
-            df[channel]
-            .astype(float)
-        )
-
-        median = float(
-            values.median()
-        )
-
-        mean = float(
-            values.mean()
-        )
-
-        std = float(
-            values.std(
-                ddof=1
-            )
-        )
-
-        if abs(median) > 0:
-
-            cv = std / abs(median)
-
-        else:
-
-            cv = np.inf
-
-        result[channel] = {
-
-            "median":
-                median,
-
-            "mean":
-                mean,
-
-            "std":
-                std,
-
-            "coefficient_of_variation":
-                float(cv)
-        }
-
-    return result
-
-
-# ============================================================
-# EXPLAINABILITY
-# ============================================================
-
-def create_explainability(
-    readings,
-    spectrum,
-    classification,
-    anomaly_score,
-    anomaly_status,
-    thresholds
-):
-    """
-    Generate explanation information.
-    """
-
-    medicine = (
-        classification[
-            "predicted_medicine"
-        ]
-    )
-
-    confidence = (
-        classification[
-            "confidence"
-        ]
-    )
-
-    # --------------------------------------------------------
-    # Classification explanation
-    # --------------------------------------------------------
-
-    if confidence is None:
-
-        classification_reason = (
-            "The classifier did not provide "
-            "a confidence score."
-        )
-
-    elif confidence < LOW_CLASSIFICATION_CONFIDENCE:
-
-        classification_reason = (
-            "The classifier has low confidence "
-            f"in identifying the medicine as "
-            f"{medicine}."
-        )
-
-    elif confidence < HIGH_CLASSIFICATION_CONFIDENCE:
-
-        classification_reason = (
-            f"The classifier identified the "
-            f"sample as {medicine}, but confidence "
-            f"is moderate."
-        )
-
-    else:
-
-        classification_reason = (
-            f"The classifier identified the "
-            f"sample as {medicine} with high "
-            f"confidence."
-        )
 
     # --------------------------------------------------------
     # Anomaly explanation
     # --------------------------------------------------------
 
-    if anomaly_status == "NO_REFERENCE":
+    if anomaly_status == "GENUINE":
 
-        anomaly_reason = (
-            f"No trained anomaly reference profile "
-            f"is available for {medicine}."
-        )
-
-    elif anomaly_status == "GENUINE":
-
-        anomaly_reason = (
-            f"The anomaly score ({anomaly_score:.4f}) "
-            f"is within the genuine range for "
-            f"{medicine}."
+        anomaly_explanation = (
+            "The spectral pattern is within the "
+            "expected genuine range for the "
+            "predicted medicine."
         )
 
     elif anomaly_status == "SUSPICIOUS":
 
-        anomaly_reason = (
-            f"The anomaly score ({anomaly_score:.4f}) "
-            f"is above the genuine boundary but "
-            f"below the counterfeit boundary."
+        anomaly_explanation = (
+            "The spectral pattern is outside the "
+            "normal genuine range but has not "
+            "crossed the counterfeit decision boundary."
         )
 
     else:
 
-        anomaly_reason = (
-            f"The anomaly score ({anomaly_score:.4f}) "
-            f"has crossed the counterfeit boundary "
-            f"for {medicine}."
+        anomaly_explanation = (
+            "The spectral pattern is far enough "
+            "from the expected genuine distribution "
+            "to cross the counterfeit decision boundary."
         )
 
     # --------------------------------------------------------
-    # Channel statistics
+    # Classification explanation
     # --------------------------------------------------------
 
-    channel_statistics = (
-        calculate_channel_statistics(
-            readings
-        )
+    confidence = (
+        classification_result[
+            "confidence"
+        ]
     )
+
+    medicine = (
+        classification_result[
+            "medicine"
+        ]
+    )
+
+    if confidence is None:
+
+        classification_explanation = (
+            "The classifier did not provide "
+            "a probability confidence."
+        )
+
+    elif (
+        confidence >=
+        CLASSIFICATION_HIGH_THRESHOLD
+    ):
+
+        classification_explanation = (
+            f"The classifier strongly identifies "
+            f"the sample as {medicine}."
+        )
+
+    elif (
+        confidence >=
+        CLASSIFICATION_MEDIUM_THRESHOLD
+    ):
+
+        classification_explanation = (
+            f"The classifier identifies "
+            f"{medicine}, but confidence is moderate."
+        )
+
+    else:
+
+        classification_explanation = (
+            "The classifier has low confidence "
+            "in the predicted medicine."
+        )
+
+    # --------------------------------------------------------
+    # Feature contribution proxy
+    # --------------------------------------------------------
+    #
+    # We do NOT claim these are true model-specific
+    # SHAP contributions.
+    #
+    # Instead, we report the largest absolute engineered
+    # feature values after transformation as diagnostic
+    # information.
+
+    feature_values = np.asarray(
+        feature_values,
+        dtype=float
+    ).reshape(-1)
+
+    feature_pairs = []
+
+    for index, value in enumerate(
+        feature_values
+    ):
+
+        if index >= len(
+            feature_names
+        ):
+
+            break
+
+        feature_pairs.append({
+            "feature":
+                str(
+                    feature_names[index]
+                ),
+
+            "value":
+                float(value),
+
+            "absolute_value":
+                float(
+                    abs(value)
+                )
+        })
+
+    feature_pairs.sort(
+        key=lambda item:
+            item["absolute_value"],
+        reverse=True
+    )
+
+    top_features = (
+        feature_pairs[:5]
+    )
+
+    # --------------------------------------------------------
+    # Stability
+    # --------------------------------------------------------
+
+    if stability_cv < 0.05:
+
+        stability_status = "STABLE"
+
+    elif stability_cv < 0.10:
+
+        stability_status = "MODERATE"
+
+    else:
+
+        stability_status = "NOISY"
 
     return {
 
         "classification": {
 
-            "predicted_medicine":
+            "medicine":
                 medicine,
 
             "confidence":
                 confidence,
 
             "status":
-                classification[
-                    "status"
+                classification_result[
+                    "classification_status"
                 ],
 
-            "probabilities":
-                classification[
-                    "probabilities"
-                ],
-
-            "reason":
-                classification_reason
+            "explanation":
+                classification_explanation
         },
 
         "anomaly": {
 
             "score":
-                anomaly_score,
+                float(
+                    anomaly_score
+                ),
+
+            "genuine_threshold":
+                genuine_threshold,
+
+            "counterfeit_threshold":
+                counterfeit_threshold,
 
             "status":
                 anomaly_status,
 
-            "thresholds":
-                thresholds,
+            "distance_from_genuine":
+                float(
+                    distance_from_genuine
+                ),
 
-            "reason":
-                anomaly_reason
+            "distance_from_counterfeit":
+                float(
+                    distance_from_counterfeit
+                ),
+
+            "explanation":
+                anomaly_explanation
         },
 
-        "spectral_reading":
-            spectrum,
+        "measurement": {
 
-        "channel_statistics":
-            channel_statistics
+            "stability_cv":
+                float(
+                    stability_cv
+                ),
+
+            "stability_status":
+                stability_status
+        },
+
+        "top_engineered_features":
+            top_features
     }
 
 
 # ============================================================
-# AUTHENTICATE ONE SCAN
+# MAIN AUTHENTICATION FUNCTION
 # ============================================================
 
 def authenticate_scan(
-    readings
+    readings,
+    classifier=None,
+    anomaly_model=None,
+    anomaly_thresholds=None
 ):
     """
-    Main authentication function.
+    Authenticate one Raspberry Pi scan.
 
     Input:
-        10 AS7262 readings.
+        10 AS7262 readings
 
     Output:
-        Complete authentication result.
+
+        {
+            "medicine": "...",
+            "classification_confidence": 0.94,
+            "anomaly_score": 3.21,
+            "classification_status": "HIGH",
+            "anomaly_status": "GENUINE",
+            "final_status": "GENUINE",
+            "explainability": {...}
+        }
     """
 
     # --------------------------------------------------------
-    # Load models
+    # Load models if not supplied
     # --------------------------------------------------------
 
     if (
-        _classifier is None
-        or _anomaly_model is None
-        or _thresholds is None
+        classifier is None
+        or anomaly_model is None
+        or anomaly_thresholds is None
     ):
 
-        load_models()
+        (
+            classifier,
+            anomaly_model,
+            anomaly_thresholds
+        ) = load_models()
 
     # --------------------------------------------------------
-    # STEP 1
-    # Aggregate 10 readings
+    # Validate number of readings
     # --------------------------------------------------------
 
-    (
-        spectrum,
-        scan_quality
-    ) = aggregate_readings(
+    if len(readings) == 0:
+
+        raise ValueError(
+            "No AS7262 readings supplied."
+        )
+
+    if len(readings) != READINGS_PER_SCAN:
+
+        raise ValueError(
+            f"Expected exactly "
+            f"{READINGS_PER_SCAN} readings "
+            f"for one scan, but received "
+            f"{len(readings)}."
+        )
+
+    # --------------------------------------------------------
+    # Aggregate the 10 readings
+    # --------------------------------------------------------
+
+    aggregation = aggregate_scan(
         readings
     )
 
-    # --------------------------------------------------------
-    # STEP 2
-    # Create classifier input
-    # --------------------------------------------------------
-
-    X = create_model_input(
-        spectrum
-    )
-
-    # --------------------------------------------------------
-    # STEP 3
-    # Classification
-    # --------------------------------------------------------
-
-    classification = classify_sample(
-        X
-    )
-
-    medicine = (
-        classification[
-            "predicted_medicine"
+    aggregated_reading = (
+        aggregation[
+            "aggregated_reading"
         ]
     )
 
     # --------------------------------------------------------
-    # STEP 4
-    # Medicine-aware threshold
+    # Classification
     # --------------------------------------------------------
 
-    thresholds = (
-        get_medicine_thresholds(
-            medicine
-        )
+    classification = classify_scan(
+        aggregated_reading,
+        classifier
+    )
+
+    medicine = (
+        classification[
+            "medicine"
+        ]
+    )
+
+    classification_confidence = (
+        classification[
+            "confidence"
+        ]
+    )
+
+    classification_status = (
+        classification[
+            "classification_status"
+        ]
     )
 
     # --------------------------------------------------------
-    # STEP 5
-    # Handle missing anomaly reference
+    # Engineered features
     # --------------------------------------------------------
 
-    if thresholds is None:
-
-        anomaly_score = None
-
-        anomaly_status = (
-            "NO_REFERENCE"
-        )
-
-        final_status = (
-            "SUSPICIOUS"
-        )
-
-        explainability = (
-            create_explainability(
-                readings,
-                spectrum,
-                classification,
-                anomaly_score,
-                anomaly_status,
-                None
-            )
-        )
-
-        return {
-
-            "medicine":
-                medicine,
-
-            "classification_confidence":
-                classification[
-                    "confidence"
-                ],
-
-            "anomaly_score":
-                None,
-
-            "classification_status":
-                classification[
-                    "status"
-                ],
-
-            "anomaly_status":
-                anomaly_status,
-
-            "final_status":
-                final_status,
-
-            "spectrum":
-                spectrum,
-
-            "scan_quality":
-                scan_quality,
-
-            "explainability":
-                explainability
-        }
+    (
+        engineered,
+        feature_names
+    ) = create_engineered_features(
+        aggregated_reading,
+        anomaly_model
+    )
 
     # --------------------------------------------------------
-    # STEP 6
     # Anomaly score
     # --------------------------------------------------------
 
     anomaly_score = (
         calculate_anomaly_score(
-            X
+            engineered,
+            medicine,
+            anomaly_model
         )
     )
 
     # --------------------------------------------------------
-    # STEP 7
-    # Anomaly decision
+    # Thresholds
+    # --------------------------------------------------------
+
+    thresholds = (
+        get_anomaly_thresholds(
+            medicine,
+            anomaly_thresholds
+        )
+    )
+
+    # --------------------------------------------------------
+    # Anomaly status
     # --------------------------------------------------------
 
     anomaly_status = (
@@ -1311,55 +1482,63 @@ def authenticate_scan(
     )
 
     # --------------------------------------------------------
-    # STEP 8
     # Final decision
     # --------------------------------------------------------
 
     final_status = (
         determine_final_status(
-            classification,
+            classification_confidence,
+            classification_status,
             anomaly_status
         )
     )
 
     # --------------------------------------------------------
-    # STEP 9
     # Explainability
     # --------------------------------------------------------
 
     explainability = (
-        create_explainability(
-            readings,
-            spectrum,
+        generate_explainability(
+            aggregated_reading,
             classification,
             anomaly_score,
             anomaly_status,
-            thresholds
+            thresholds,
+            engineered,
+            feature_names,
+            aggregation[
+                "stability_cv"
+            ]
         )
     )
 
-    # --------------------------------------------------------
-    # STEP 10
-    # Final response
-    # --------------------------------------------------------
+    # ========================================================
+    # RESULT
+    # ========================================================
 
-    return {
+    result = {
 
         "medicine":
             medicine,
 
         "classification_confidence":
-            classification[
-                "confidence"
-            ],
+            (
+                None
+                if classification_confidence
+                is None
+
+                else float(
+                    classification_confidence
+                )
+            ),
 
         "anomaly_score":
-            anomaly_score,
+            float(
+                anomaly_score
+            ),
 
         "classification_status":
-            classification[
-                "status"
-            ],
+            classification_status,
 
         "anomaly_status":
             anomaly_status,
@@ -1367,54 +1546,165 @@ def authenticate_scan(
         "final_status":
             final_status,
 
-        "spectrum":
-            spectrum,
-
-        "scan_quality":
-            scan_quality,
-
         "explainability":
-            explainability
+            explainability,
+
+        "scan_data": {
+
+            "n_readings":
+                aggregation[
+                    "n_readings"
+                ],
+
+            "aggregated_reading":
+                aggregated_reading,
+
+            "channel_std":
+                {
+                    channel:
+                        float(
+                            aggregation[
+                                "std"
+                            ][index]
+                        )
+
+                    for index, channel
+                    in enumerate(CHANNELS)
+                },
+
+            "stability_cv":
+                float(
+                    aggregation[
+                        "stability_cv"
+                    ]
+                )
+        },
+
+        "classification_probabilities":
+            classification[
+                "probabilities"
+            ]
     }
 
+    return result
+
 
 # ============================================================
-# DEMO INPUT
+# SAFE JSON CONVERSION
 # ============================================================
 
-def create_demo_readings():
+def make_json_serializable(
+    obj
+):
     """
-    Ten example AS7262 readings.
+    Convert numpy values to normal Python values.
+    """
 
-    Replace these with the actual Raspberry Pi sensor
-    readings when connecting the hardware.
+    if isinstance(
+        obj,
+        dict
+    ):
+
+        return {
+            key:
+                make_json_serializable(
+                    value
+                )
+
+            for key, value
+            in obj.items()
+        }
+
+    if isinstance(
+        obj,
+        list
+    ):
+
+        return [
+            make_json_serializable(
+                value
+            )
+
+            for value in obj
+        ]
+
+    if isinstance(
+        obj,
+        tuple
+    ):
+
+        return [
+            make_json_serializable(
+                value
+            )
+
+            for value in obj
+        ]
+
+    if isinstance(
+        obj,
+        np.integer
+    ):
+
+        return int(obj)
+
+    if isinstance(
+        obj,
+        np.floating
+    ):
+
+        return float(obj)
+
+    if isinstance(
+        obj,
+        np.ndarray
+    ):
+
+        return obj.tolist()
+
+    return obj
+
+
+# ============================================================
+# TEST DATA
+# ============================================================
+
+def create_test_readings():
+    """
+    Generate 10 example readings for testing.
+
+    Replace these values with actual Raspberry Pi
+    AS7262 readings when hardware is available.
     """
 
     base = {
 
-        "ch450": 1230,
-        "ch500": 1450,
-        "ch550": 1780,
-        "ch570": 1900,
-        "ch600": 1650,
-        "ch650": 1100
+        "ch450": 1000.0,
+        "ch500": 1200.0,
+        "ch550": 1400.0,
+        "ch570": 1500.0,
+        "ch600": 1300.0,
+        "ch650": 900.0
     }
 
     readings = []
 
     for i in range(
-        EXPECTED_READINGS
+        READINGS_PER_SCAN
     ):
 
-        offset = (
-            (i % 3) - 1
+        # Small deterministic variation
+        # to simulate repeated sensor readings.
+
+        factor = (
+            1.0 +
+            (i - 4.5) * 0.002
         )
 
         reading = {
             channel:
-                float(
-                    value + offset
-                )
+                value * factor
+
             for channel, value
             in base.items()
         }
@@ -1427,24 +1717,38 @@ def create_demo_readings():
 
 
 # ============================================================
-# MAIN
+# MAIN TEST
 # ============================================================
 
 if __name__ == "__main__":
 
     print(
-        "\nRunning Raspberry Pi "
-        "ML inference test..."
+        "\nRunning Raspberry Pi ML inference test..."
     )
 
     try:
 
         # ----------------------------------------------------
-        # Create example 10-reading scan
+        # Load models
+        # ----------------------------------------------------
+
+        (
+            classifier,
+            anomaly_model,
+            anomaly_thresholds
+        ) = load_models()
+
+        # ----------------------------------------------------
+        # Generate test readings
         # ----------------------------------------------------
 
         readings = (
-            create_demo_readings()
+            create_test_readings()
+        )
+
+        print(
+            f"\nReceived "
+            f"{len(readings)} AS7262 readings."
         )
 
         # ----------------------------------------------------
@@ -1452,16 +1756,24 @@ if __name__ == "__main__":
         # ----------------------------------------------------
 
         result = authenticate_scan(
-            readings
+            readings,
+            classifier,
+            anomaly_model,
+            anomaly_thresholds
         )
 
         # ----------------------------------------------------
-        # Print compact result
+        # JSON-safe result
         # ----------------------------------------------------
 
+        result = (
+            make_json_serializable(
+                result
+            )
+        )
+
         print(
-            "\n"
-            + "=" * 60
+            "\n" + "=" * 60
         )
 
         print(
@@ -1475,8 +1787,7 @@ if __name__ == "__main__":
         print(
             json.dumps(
                 result,
-                indent=4,
-                default=str
+                indent=4
             )
         )
 

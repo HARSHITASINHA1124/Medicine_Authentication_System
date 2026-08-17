@@ -18,10 +18,7 @@ env/
 .env.*
 
 # Data and model artifacts
-data/
-!data/public/
-!data/processed/
-processed/
+
 artifacts/
 checkpoints/
 models/

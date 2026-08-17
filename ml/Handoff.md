@@ -179,6 +179,9 @@ Current ML directory should look approximately like:
 
     ml/
     |
+    +-- README.md
+    +-- .gitignore
+    +-- requirements.txt
     +-- data/
     |   |
     |   +-- processed/
@@ -194,6 +197,7 @@ Current ML directory should look approximately like:
         +-- data_validation.py
         +-- calibration.py
         +-- preprocessing.py
+        +-- eda.py
 
 Additional training/evaluation files will be added later.
 
@@ -473,7 +477,7 @@ during inference.
 
 # 16. IMMEDIATE NEXT STEP
 
-The next file to create is:
+The EDA file has been created and is in place:
 
     src/eda.py
 
@@ -482,15 +486,16 @@ Purpose:
 Explore whether the AS7262 spectral features provide useful
 separation between the target medicines.
 
-EDA should include:
+EDA currently includes:
 
 - spectral profiles
 - channel distributions
 - feature correlations
-- PCA visualization
-- class balance
+- engineered feature analysis
+- mutual information / feature ranking
 
-Do NOT use EDA results as final model performance.
+These results are exploratory only and should not be treated as
+final model performance.
 
 ---
 
@@ -522,6 +527,93 @@ but not both.
 
 Otherwise the model can effectively see the same tablet during
 training and testing.
+
+---
+
+# 17B. DATA GROUPING SEMANTICS
+
+Understanding the metadata fields is critical for preventing data leakage.
+
+## sample_id
+
+The physical tablet or medicine unit being tested.
+
+Example:
+
+    sample_id = "P001"
+
+A single sample_id represents one individual tablet.
+
+All repeated measurements from the same tablet share the same sample_id.
+
+They are NOT independent training examples.
+
+## measurement_id
+
+Each AS7262 reading/scan from a sample.
+
+Example:
+
+    sample_id = "P001"
+    measurement_id = "1"
+    measurement_id = "2"
+    measurement_id = "3"
+
+Three scans of tablet P001 produce three rows, each with:
+- same sample_id
+- different measurement_id
+- same medicine, batch_id, manufacturer
+
+All measurements from P001 (all measurement_ids) must stay together
+during train/test splits.
+
+## batch_id
+
+The manufacturing batch of the tablet.
+
+Example:
+
+    batch_id = "B20230315"
+
+Multiple tablets can come from the same batch.
+
+For grouped splitting, batch_id is a secondary grouping key.
+
+When possible, the validation set should include tablets from unseen
+batches to test batch generalization.
+
+## manufacturer
+
+Metadata identifying the company that produced the medicine.
+
+Example:
+
+    manufacturer = "CompanyA"
+
+Manufacturer is NOT normally used as an ML feature.
+
+It is metadata for tracking and future batch/manufacturer analysis.
+
+## grouped_split_key
+
+For grouped data splitting, use:
+
+    sample_id (primary)
+    batch_id (secondary, for unseen batch evaluation)
+
+CORRECT train/test split:
+
+    P001 (all measurement_ids) -> TRAINING
+    P002 (all measurement_ids) -> TRAINING
+    P003 (all measurement_ids) -> TEST
+    P004 (all measurement_ids) -> TEST
+
+INCORRECT train/test split (data leakage):
+
+    P001_measurement_1 -> TRAINING
+    P001_measurement_2 -> TEST
+
+The second example leaks the same tablet into both sets.
 
 ---
 
@@ -625,63 +717,93 @@ Do not rely on accuracy alone.
 
 ---
 
-# 22. ANOMALY MODEL STAGE
+# 22. SHARED ANOMALY ENGINE WITH MEDICINE-SPECIFIC REFERENCE PROFILES
 
-After classification is working, create one reference/anomaly model
-per medicine.
+After classification is working, build:
 
-Example:
+1. ONE shared anomaly/authentication engine
+2. MEDICINE-SPECIFIC reference profiles/distributions
 
-    classifier
-        |
-        +--> paracetamol
-        |       |
-        |       +--> paracetamol reference model
-        |
-        +--> aspirin
-        |       |
-        |       +--> aspirin reference model
-        |
-        +--> vitamin_c
-                |
-                +--> vitamin C reference model
+Architecture:
 
-Candidate algorithms:
+    medicine classifier
+       |
+       v
+    predicted medicine
+       |
+       v
+    shared anomaly engine
+       |
+       v
+    paracetamol reference dist
+    aspirin reference dist
+    vitamin_c reference dist
+       |
+       v
+    anomaly score
+       |
+       v
+    decision thresholds
+       |
+       v
+    VERIFIED / SUSPICIOUS / NOT VERIFIED
+
+Candidate algorithms for the shared anomaly engine:
 
     Mahalanobis distance
     One-Class SVM
     Isolation Forest
 
-The anomaly model learns the distribution of reference/genuine
-samples for that specific medicine.
+The anomaly engine computes a similarity/anomaly score between the
+test sample and the reference distribution for the predicted medicine.
+
+Advantage:
+- Single anomaly algorithm scales to new medicines by simply adding
+  a new reference profile.
+- No need to create a separate anomaly model for each medicine.
+- Consistent anomaly methodology across all medicines.
 
 ---
 
-# 23. WHY MODELS ARE MEDICINE-SPECIFIC
+# 23. MEDICINE-SPECIFIC REFERENCE PROFILES
 
-A global anomaly model would attempt to learn one "normal medicine"
-distribution across chemically and spectrally different medicines.
+Each target medicine has its own learned reference distribution
+of "known good" samples.
 
-That is not the intended architecture.
+Example:
 
-Instead:
+    paracetamol_reference -> mean, covariance, or fitted distribution
+    aspirin_reference     -> mean, covariance, or fitted distribution
+    vitamin_c_reference   -> mean, covariance, or fitted distribution
 
-    Paracetamol -> Paracetamol normal distribution
-    Aspirin     -> Aspirin normal distribution
-    Vitamin C   -> Vitamin C normal distribution
+The shared anomaly engine:
 
-This is more aligned with the reference-based authentication goal.
+1. Takes the predicted medicine from the classifier.
+2. Loads the corresponding reference profile.
+3. Computes the distance/anomaly score.
+4. Applies medicine-specific thresholds.
+5. Produces the final decision.
+
+This is more aligned with the reference-based authentication goal:
+each medicine has a known spectral signature that is learned from
+reference samples.
 
 ---
 
-# 24. AUTHENTICATION LOGIC
+# 24. PHASE 1 AUTHENTICATION LOGIC
 
-The final inference architecture should be:
+The Phase 1 inference architecture is:
 
     AS7262
        |
        v
+    calibration
+       |
+       v
     preprocessing
+       |
+       v
+    feature engineering
        |
        v
     medicine classifier
@@ -690,20 +812,25 @@ The final inference architecture should be:
     predicted medicine
        |
        v
-    medicine-specific anomaly model
+    shared anomaly engine
+       |
+       v
+    (load medicine-specific reference profile)
        |
        v
     anomaly score
        |
        v
-    decision thresholds
+    apply medicine-specific threshold
        |
        +------------------+
        |         |        |
        v         v        v
     VERIFIED  SUSPICIOUS  NOT VERIFIED
 
-The classifier and anomaly detector serve different purposes.
+The classifier and anomaly engine serve different purposes:
+- Classifier: "Which medicine is this?"
+- Anomaly engine: "Does this match the reference distribution for that medicine?"
 
 ---
 
@@ -803,6 +930,7 @@ After training, save:
     models/
         medicine_classifier.pkl
         as7262_preprocessor.pkl
+        anomaly_engine.pkl
         paracetamol_reference.pkl
         aspirin_reference.pkl
         vitamin_c_reference.pkl
@@ -814,6 +942,10 @@ The Raspberry Pi loads these files.
 Training does not happen on the Raspberry Pi.
 
 Inference does.
+
+Deployment of a new medicine only requires adding a new reference
+profile file (e.g., ibuprofen_reference.pkl) and updating thresholds.json.
+No need to retrain or redeploy the anomaly engine.
 
 ---
 
@@ -829,10 +961,11 @@ It should provide one high-level function:
 
 The backend should not need to know:
 
-- SVM implementation
-- feature engineering
+- classifier implementation
+- feature engineering details
 - scaler details
 - anomaly algorithm
+- reference profile format
 - threshold calculations
 
 It should simply call the ML interface.
@@ -840,16 +973,26 @@ It should simply call the ML interface.
 Expected conceptual output:
 
     {
-        "medicine": "...",
-        "result": "VERIFIED",
-        "anomaly_score": ...,
-        "confidence": ...,
-        "explanation": ...,
-        "model_version": "..."
+        "predicted_medicine": "paracetamol",
+        "authentication_result": "VERIFIED",
+        "anomaly_score": 0.42,
+        "reference_threshold": 0.75,
+        "confidence": 0.95,
+        "explanation": "Spectral profile matches paracetamol reference within acceptable range",
+        "model_version": "phase1_v1"
     }
 
 The exact schema should be aligned with the existing backend before
 integration.
+
+Internal flow (hidden from backend):
+
+1. Preprocess and engineer features from AS7262 readings
+2. Run medicine classifier → predicted medicine
+3. Load medicine-specific reference profile
+4. Run shared anomaly engine → anomaly score
+5. Apply medicine-specific threshold
+6. Generate explanation
 
 ---
 
@@ -952,12 +1095,13 @@ over unnecessarily large deep-learning models.
 
 ## Authentication
 
-    [ ] Build paracetamol reference model
-    [ ] Build aspirin reference model
-    [ ] Build vitamin C reference model
-    [ ] Compare anomaly algorithms
-    [ ] Calibrate thresholds
-    [ ] Build decision engine
+    [ ] Build shared anomaly engine
+    [ ] Extract paracetamol reference profile (mean, covariance)
+    [ ] Extract aspirin reference profile (mean, covariance)
+    [ ] Extract vitamin C reference profile (mean, covariance)
+    [ ] Compare anomaly algorithms (Mahalanobis, One-Class SVM, Isolation Forest)
+    [ ] Calibrate medicine-specific thresholds
+    [ ] Build decision logic with threshold application
 
 ## Explainability
 
@@ -1029,13 +1173,22 @@ The project is currently at:
     Preprocessing + feature engineering
        |
        v
+    EDA analysis
+       |
+       v
     >>> CURRENT POSITION <<<
 
+The current implementation status is:
+
+    [x] Setup documentation created
+    [x] ML requirements updated for EDA
+    [x] EDA script implemented
+    [ ] Grouped data splitting
+    [ ] Classification training
+    [ ] Model validation
+    [ ] Anomaly model stage
+
 The immediate next implementation task is:
-
-    BUILD EDA + PREPROCESSING TESTING
-
-Then:
 
     GROUPED DATA SPLITTING
 

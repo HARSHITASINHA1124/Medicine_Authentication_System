@@ -10,7 +10,10 @@ FEATURES = [
 MEDICINES = [
     "paracetamol",
     "aspirin",
-    "vitamin_c"
+    "vitamin_c",
+    "caffeine",
+    "cocaine",
+    "lidocaine"
 ]
 
 IDENTIFIER_COLUMNS = [

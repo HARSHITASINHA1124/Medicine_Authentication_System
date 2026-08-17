@@ -13,7 +13,7 @@ TARGET = "medicine"
 
 
 def load_data(path):
-    df = pd.read_csv('ml\data\processed\medicines_as7262.csv')
+    df = pd.read_csv(path)
 
     # Rename current ASD dataset column if necessary
     if "Sample Code" in df.columns and "sample_id" not in df.columns:

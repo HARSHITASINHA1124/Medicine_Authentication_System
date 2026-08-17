@@ -12,11 +12,13 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     total_scans = db.query(func.count(Scan.scan_id)).scalar()
     genuine = db.query(func.count(Scan.scan_id)).filter(Scan.classification == "Genuine").scalar()
     counterfeit = db.query(func.count(Scan.scan_id)).filter(Scan.classification == "Counterfeit").scalar()
-    
+    suspicious = db.query(func.count(Scan.scan_id)).filter(Scan.classification == "Suspicious").scalar()
+
     return {
         "total_scans": total_scans,
         "genuine": genuine,
         "counterfeit": counterfeit,
+        "suspicious": suspicious,
         "pending_sync": db.query(func.count(Scan.scan_id)).filter(Scan.sync_status == "pending").scalar()
     }
 

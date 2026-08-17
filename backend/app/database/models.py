@@ -21,11 +21,18 @@ class Batch(Base):
 class Scan(Base):
     __tablename__ = "scans"
 
-    scan_id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    scan_id = Column(Integer, unique=True, nullable=True, index=True)
     device_id = Column(String, nullable=False)
     batch_id = Column(String, ForeignKey("batches.batch_id"), nullable=True)
     medicine_name = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=False, index=True, default=lambda: datetime.now(timezone.utc))
+    channel_1 = Column(Float, nullable=True)
+    channel_2 = Column(Float, nullable=True)
+    channel_3 = Column(Float, nullable=True)
+    channel_4 = Column(Float, nullable=True)
+    channel_5 = Column(Float, nullable=True)
+    channel_6 = Column(Float, nullable=True)
     classification = Column(String, nullable=True)
     confidence_score = Column(Float, nullable=True)
     anomaly_score = Column(Float, nullable=True)

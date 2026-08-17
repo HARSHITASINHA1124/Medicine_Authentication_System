@@ -74,6 +74,31 @@ def test_scan_with_nullable_fields():
     assert body["anomaly_score"] is None
 
 
+def test_scan_accepts_six_channel_inputs_and_suspicious_label():
+    payload = {
+        "scan_id": 987,
+        "batch_id": "BATCH_API_002",
+        "medicine_name": "Ibuprofen 200mg",
+        "channel_1": 1.2,
+        "channel_2": 2.3,
+        "channel_3": 3.4,
+        "channel_4": 4.5,
+        "channel_5": 5.6,
+        "channel_6": 6.7,
+        "classification": "Suspicious",
+        "confidence_score": 0.61,
+        "anomaly_score": 0.47,
+    }
+
+    response = client.post("/api/scans/", json=payload)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["scan_id"] == 987
+    assert body["classification"] == "Suspicious"
+    assert body["channel_1"] == 1.2
+    assert body["channel_6"] == 6.7
+
+
 def test_invalid_scan_data_rejected():
     response = client.post("/api/scans/", json={
         "classification": "Unknown",

@@ -18,9 +18,12 @@ def trigger_sync():
 
 @router.post("/", response_model=ScanResponse, status_code=201)
 def create_scan(scan: ScanCreate, db: Session = Depends(get_db)):
+    payload = scan.model_dump(exclude_none=True)
+    requested_scan_id = payload.get("scan_id")
+
     # Create the local record
     new_scan = Scan(
-        **scan.model_dump(),
+        **payload,
         device_id=settings.device_id,
         sync_status="pending",
         timestamp=datetime.now(timezone.utc)
@@ -28,10 +31,17 @@ def create_scan(scan: ScanCreate, db: Session = Depends(get_db)):
     db.add(new_scan)
     db.commit()
     db.refresh(new_scan)
-    
+
+    if requested_scan_id is not None:
+        new_scan.scan_id = requested_scan_id
+    elif new_scan.scan_id is None:
+        new_scan.scan_id = new_scan.id
+    db.commit()
+    db.refresh(new_scan)
+
     # Notify the sync worker to attempt sync (implementation will depend on worker design)
     trigger_sync()
-    
+
     return new_scan
 
 @router.get("/", response_model=List[ScanResponse])

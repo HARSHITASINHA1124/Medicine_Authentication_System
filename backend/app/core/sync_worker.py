@@ -47,9 +47,11 @@ def sync_batch():
 
         insert_query = text("""
             INSERT INTO scans
-            (device_id, scan_id, batch_id, medicine_name, timestamp, classification, confidence_score, anomaly_score, sync_status)
+            (device_id, scan_id, batch_id, medicine_name, timestamp, channel_1, channel_2, channel_3, channel_4, channel_5, channel_6,
+             classification, confidence_score, anomaly_score, sync_status)
             VALUES
-            (:device_id, :scan_id, :batch_id, :medicine_name, :timestamp, :classification, :confidence_score, :anomaly_score, :sync_status)
+            (:device_id, :scan_id, :batch_id, :medicine_name, :timestamp, :channel_1, :channel_2, :channel_3, :channel_4, :channel_5, :channel_6,
+             :classification, :confidence_score, :anomaly_score, :sync_status)
             ON CONFLICT (device_id, scan_id) DO NOTHING
         """)
 
@@ -61,6 +63,12 @@ def sync_batch():
                 "batch_id": scan.batch_id,
                 "medicine_name": scan.medicine_name,
                 "timestamp": scan.timestamp,
+                "channel_1": scan.channel_1,
+                "channel_2": scan.channel_2,
+                "channel_3": scan.channel_3,
+                "channel_4": scan.channel_4,
+                "channel_5": scan.channel_5,
+                "channel_6": scan.channel_6,
                 "classification": scan.classification,
                 "confidence_score": scan.confidence_score,
                 "anomaly_score": scan.anomaly_score,

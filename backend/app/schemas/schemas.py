@@ -18,9 +18,16 @@ class BatchResponse(BatchBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ScanBase(BaseModel):
+    scan_id: Optional[int] = None
     batch_id: Optional[str] = None
     medicine_name: Optional[str] = None
-    classification: Optional[Literal["Genuine", "Counterfeit"]] = None
+    channel_1: Optional[float] = None
+    channel_2: Optional[float] = None
+    channel_3: Optional[float] = None
+    channel_4: Optional[float] = None
+    channel_5: Optional[float] = None
+    channel_6: Optional[float] = None
+    classification: Optional[Literal["Genuine", "Counterfeit", "Suspicious"]] = None
     confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     anomaly_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
@@ -28,6 +35,7 @@ class ScanCreate(ScanBase):
     pass
 
 class ScanResponse(ScanBase):
+    id: int
     scan_id: int
     device_id: str
     timestamp: datetime

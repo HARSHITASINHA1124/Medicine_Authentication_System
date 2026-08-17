@@ -1,6 +1,6 @@
 # ML + Frontend Handoff
 
-This document reflects the current verified backend architecture and API contract as of 2026-08-14. No implementation changes were made beyond documentation.
+This document reflects the current backend contract for the Raspberry Pi + ML + cloud sync flow.
 
 ## 1) ML -> Backend Integration
 
@@ -10,52 +10,87 @@ POST /api/scans/
 ### Exact request JSON
 ```json
 {
+  "scan_id": 987,
   "batch_id": "B12345",
   "medicine_name": "Paracetamol",
-  "classification": "Genuine",
-  "confidence_score": 0.96,
-  "anomaly_score": 0.04
+  "channel_1": 1.2,
+  "channel_2": 2.3,
+  "channel_3": 3.4,
+  "channel_4": 4.5,
+  "channel_5": 5.6,
+  "channel_6": 6.7,
+  "classification": "Suspicious",
+  "confidence_score": 0.61,
+  "anomaly_score": 0.47
 }
 ```
 
 ### Field definitions
 | Field | Type | Nullable | Notes |
 |---|---|---:|---|
+| `scan_id` | integer | Yes | Application-level scan identifier. The backend keeps an internal auto-increment key and sets `scan_id` as the business identifier when provided. |
 | `batch_id` | string | Yes | Batch reference if available |
 | `medicine_name` | string | Yes | Medicine name if available |
-| `classification` | string | Yes | Allowed values: `Genuine`, `Counterfeit` |
+| `channel_1` | number | Yes | 6-channel input reading |
+| `channel_2` | number | Yes | 6-channel input reading |
+| `channel_3` | number | Yes | 6-channel input reading |
+| `channel_4` | number | Yes | 6-channel input reading |
+| `channel_5` | number | Yes | 6-channel input reading |
+| `channel_6` | number | Yes | 6-channel input reading |
+| `classification` | string | Yes | Allowed values: `Genuine`, `Counterfeit`, `Suspicious` |
 | `confidence_score` | number | Yes | Range: 0.0 to 1.0 |
 | `anomaly_score` | number | Yes | Range: 0.0 to 1.0 |
 
 ### Validation rules
-- `classification` must be either `"Genuine"` or `"Counterfeit"` when provided.
+- `classification` must be one of `"Genuine"`, `"Counterfeit"`, or `"Suspicious"` when provided.
 - `confidence_score` must be between `0.0` and `1.0` when provided.
 - `anomaly_score` must be between `0.0` and `1.0` when provided.
+- All channel values are nullable and may be omitted when unavailable.
 - Nulls are valid for incomplete or unavailable ML results.
+
+### Raspberry Pi / ML data pipeline
+- The Raspberry Pi produces 6 input channels for one reading.
+- A single sample may include 10 rows from the sensor pipeline before ML evaluation.
+- The backend expects the final ML result payload after aggregation/processing, not the raw 10-row sensor stream.
+- The ML service returns the final classification plus confidence/anomaly values and the 6 aggregate channel readings.
 
 ### Backend-controlled fields
 These are created by the backend and should not be provided by ML clients:
+- `id` — internal auto-increment database primary key
 - `device_id` — from `DEVICE_ID` in `.env`
 - `timestamp` — server-generated UTC timestamp
-- `scan_id` — auto-generated database ID
 - `sync_status` — backend-managed local status (`pending` initially)
 
 ### Example valid request
 ```json
 {
+  "scan_id": 101,
   "batch_id": "B12345",
   "medicine_name": "Paracetamol",
-  "classification": "Counterfeit",
-  "confidence_score": 0.72,
-  "anomaly_score": 0.81
+  "channel_1": 0.92,
+  "channel_2": 0.88,
+  "channel_3": 0.76,
+  "channel_4": 0.81,
+  "channel_5": 0.90,
+  "channel_6": 0.87,
+  "classification": "Genuine",
+  "confidence_score": 0.96,
+  "anomaly_score": 0.04
 }
 ```
 
 ### Example nullable request
 ```json
 {
+  "scan_id": null,
   "batch_id": null,
   "medicine_name": null,
+  "channel_1": null,
+  "channel_2": null,
+  "channel_3": null,
+  "channel_4": null,
+  "channel_5": null,
+  "channel_6": null,
   "classification": null,
   "confidence_score": null,
   "anomaly_score": null
@@ -77,10 +112,17 @@ Example response:
 ```json
 [
   {
+    "id": 1,
     "scan_id": 1,
     "device_id": "PI_001",
     "batch_id": "B12345",
     "medicine_name": "Paracetamol",
+    "channel_1": 0.92,
+    "channel_2": 0.88,
+    "channel_3": 0.76,
+    "channel_4": 0.81,
+    "channel_5": 0.90,
+    "channel_6": 0.87,
     "timestamp": "2026-08-14T12:00:00Z",
     "classification": "Genuine",
     "confidence_score": 0.96,
@@ -100,10 +142,17 @@ Pagination behavior:
 Example response:
 ```json
 {
+  "id": 3,
   "scan_id": 3,
   "device_id": "PI_001",
   "batch_id": "B12345",
   "medicine_name": "Paracetamol",
+  "channel_1": 0.92,
+  "channel_2": 0.88,
+  "channel_3": 0.76,
+  "channel_4": 0.81,
+  "channel_5": 0.90,
+  "channel_6": 0.87,
   "timestamp": "2026-08-14T12:00:00Z",
   "classification": "Genuine",
   "confidence_score": 0.96,
@@ -153,6 +202,7 @@ Example response:
   "total_scans": 42,
   "genuine": 30,
   "counterfeit": 12,
+  "suspicious": 5,
   "pending_sync": 3
 }
 ```
@@ -211,8 +261,9 @@ Example 422 response:
 
 The following values are backend-controlled and should not be set or modified by the ML team or frontend clients unless explicitly required by the backend contract.
 
+- `id` — internal database primary key used by SQLAlchemy
 - `device_id` — device identity, loaded from `DEVICE_ID` in `.env`
-- `scan_id` — auto-incremented local SQLite ID
+- `scan_id` — application-level identifier, usually provided by the ML/PI pipeline or auto-filled when missing
 - `timestamp` — UTC timestamp assigned by backend at creation time
 - `sync_status` — backend synchronization state (`pending` or `synced`)
 
@@ -245,6 +296,7 @@ Frontend/ML clients should treat these values as read-only unless the backend ex
 The cloud sync uses the uniqueness of `(device_id, scan_id)`.
 
 This prevents duplicate Neon rows on repeated sync attempts and app restarts.
+The internal `id` column is the database primary key, while `scan_id` remains the application identifier used for idempotent cloud writes.
 
 ---
 

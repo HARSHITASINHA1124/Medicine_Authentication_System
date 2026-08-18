@@ -1,50 +1,151 @@
 row_index,actual_medicine,predicted_medicine,classification_confidence,classification_status,anomaly_score,anomaly_status,final_status,reason
-0,cocaine,cocaine,1.0,HIGH,7.0816556523869485,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-1,cocaine,cocaine,0.98,HIGH,7.856661087190559,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-2,cocaine,cocaine,1.0,HIGH,3.346801976240613,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-3,cocaine,cocaine,1.0,HIGH,4.578336460921263,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-4,cocaine,cocaine,1.0,HIGH,12.025825889219618,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-5,cocaine,cocaine,0.945,HIGH,23.356148492435526,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-6,cocaine,FMA,0.535,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-7,cocaine,cocaine,1.0,HIGH,10.610501590805143,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-8,cocaine,cocaine,1.0,HIGH,9.76964107480083,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-9,cocaine,cocaine,1.0,HIGH,14.406311885506057,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-10,cocaine,cocaine,0.99,HIGH,40.57470369117869,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
-11,cocaine,cocaine,1.0,HIGH,17.44599208041018,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-12,cocaine,cocaine,1.0,HIGH,7.790258323995771,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-13,cocaine,cocaine,1.0,HIGH,4.871471158747852,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-14,cocaine,cocaine,1.0,HIGH,2.5755533671860817,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-15,cocaine,cocaine,1.0,HIGH,2.4001228607370995,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-16,cocaine,cocaine,1.0,HIGH,9.82192905738634,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-17,cocaine,cocaine,0.965,HIGH,7.901311224466099,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-18,cocaine,cocaine,0.97,HIGH,5.521120118023647,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-19,cocaine,cocaine,1.0,HIGH,12.175857413234553,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-20,cocaine,cocaine,1.0,HIGH,3.2067421571530303,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-21,cocaine,cocaine,1.0,HIGH,4.395674119203789,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-22,cocaine,cocaine,1.0,HIGH,5.573397959960176,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-23,cocaine,cocaine,1.0,HIGH,13.767892473891038,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-24,cocaine,cocaine,1.0,HIGH,5.938736961473822,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-25,cocaine,cocaine,1.0,HIGH,4.805929433265305,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-26,cocaine,cocaine,1.0,HIGH,4.111747481484714,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-27,MDMA,cocaine,0.93,HIGH,632.5903837527729,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
-28,2C-B,2C-B,0.7,HIGH,598.4385791187241,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
-29,2C-B,MDMA,0.73,HIGH,2.226081015379875,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-30,2C-B isomer,2C-B isomer,0.745,HIGH,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
-31,FA,FA,0.54,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-32,2C-B isomer,2C-B isomer,0.675,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
-33,2C-B,2C-B,0.7,HIGH,28.36848541821746,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
-34,2C-B,2C-B,0.975,HIGH,3.049411495215892,GENUINE,GENUINE,High classification confidence and normal anomaly score.
-35,FMA,MDMA,0.535,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-36,MDMA,2C-B isomer,0.515,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
-37,MDMA,cocaine,0.56,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-38,MDMA,MDMA,0.575,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-39,MDMA,MDMA,0.53,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-40,MDMA,MDMA,0.69,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-41,MDMA,MDMA,0.515,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-42,MDMA,FA,0.45,LOW,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-43,MDMA,MDMA,0.91,HIGH,59.05622976221661,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
-44,MDMA,2C-B,0.585,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-45,MDMA,2C-B,0.49,LOW,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-46,MDMA,2C-B isomer,0.38,LOW,,NOT_EVALUATED,SUSPICIOUS,Predicted medicine is not present in the reference database.
-47,MDMA,2C-B,0.635,MEDIUM,,NOT_EVALUATED,SUSPICIOUS,Classification confidence is not high enough for authenticity confirmation.
-48,cocaine,cocaine,0.725,HIGH,1578.1154282465577,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+0,Ondansetron,Ondansetron,0.8878206074933447,HIGH,6.843651856205753,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+1,Ondansetron,Ondansetron,0.8822852315413976,HIGH,13.863006362158385,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+2,Ondansetron,Ondansetron,0.8542082045069704,HIGH,5.4444173838941055,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+3,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+4,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+5,Ondansetron,Ondansetron,0.851754079057495,HIGH,7.73131231888641,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+6,Ondansetron,Ondansetron,0.8878206074933447,HIGH,6.843651856205753,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+7,Ondansetron,Ondansetron,0.8878206074933447,HIGH,6.843651856205753,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+8,Ondansetron,Ondansetron,0.851754079057495,HIGH,7.73131231888641,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+9,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+10,Ondansetron,Ondansetron,0.8542082045069704,HIGH,5.4444173838941055,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+11,Ondansetron,Ondansetron,0.8586516998616615,HIGH,16.03408886499267,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+12,Ondansetron,Ondansetron,0.8691982169878447,HIGH,13.734643712136917,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+13,Ondansetron,Ondansetron,0.8732377466453987,HIGH,7.562930872102185,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+14,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+15,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+16,Ondansetron,Ondansetron,0.8542082045069704,HIGH,5.4444173838941055,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+17,Ondansetron,Ondansetron,0.8595005609010836,HIGH,1263.4972281420924,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+18,Ondansetron,Ondansetron,0.8822852315413976,HIGH,13.863006362158385,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+19,Ondansetron,Ondansetron,0.8732377466453987,HIGH,7.562930872102185,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+20,Ondansetron,Ondansetron,0.8878206074933447,HIGH,6.843651856205753,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+21,Ondansetron,Ondansetron,0.8732377466453987,HIGH,7.562930872102185,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+22,Ondansetron,Ondansetron,0.8926924851418608,HIGH,1295.7557619734218,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+23,Ondansetron,Ondansetron,0.8602953572071702,HIGH,7.628057875100921,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+24,Ondansetron,Ondansetron,0.8447228891120012,HIGH,31.548949284263927,SUSPICIOUS,SUSPICIOUS,The sample requires further verification because either classification confidence or anomaly score is outside the genuine range.
+25,Ondansetron,Ondansetron,0.8542082045069704,HIGH,5.4444173838941055,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+26,Ondansetron,Ondansetron,0.8822852315413976,HIGH,13.863006362158385,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+27,Ondansetron,Ondansetron,0.8820362021702235,HIGH,1599.1471008016015,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+28,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+29,Ondansetron,Ondansetron,0.8603941540968533,HIGH,4.996782094851823,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+30,Etoricoxib,Etoricoxib,0.9809098501051909,HIGH,6.390103704498377,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+31,Etoricoxib,Etoricoxib,0.9715533329478827,HIGH,6.19635813846847,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+32,Etoricoxib,Etoricoxib,0.9626736672547748,HIGH,3.891011772067547,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+33,Etoricoxib,Etoricoxib,0.9617916960867282,HIGH,13.705852458880486,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+34,Etoricoxib,Etoricoxib,0.9745808855695024,HIGH,5.736575055168686,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+35,Etoricoxib,Etoricoxib,0.9751373408474043,HIGH,3.433039925803321,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+36,Etoricoxib,Etoricoxib,0.9626736672547748,HIGH,3.891011772067547,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+37,Etoricoxib,Etoricoxib,0.9715533329478827,HIGH,6.19635813846847,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+38,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+39,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+40,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+41,Etoricoxib,Etoricoxib,0.9791611422773813,HIGH,6.053069859849594,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+42,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+43,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+44,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+45,Etoricoxib,Etoricoxib,0.9809098501051909,HIGH,6.390103704498377,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+46,Etoricoxib,Etoricoxib,0.9809098501051909,HIGH,6.390103704498377,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+47,Etoricoxib,Etoricoxib,0.9745808855695024,HIGH,5.736575055168686,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+48,Etoricoxib,Etoricoxib,0.9751373408474043,HIGH,3.433039925803321,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+49,Etoricoxib,Etoricoxib,0.9626736672547748,HIGH,3.891011772067547,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+50,Etoricoxib,Etoricoxib,0.9626736672547748,HIGH,3.891011772067547,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+51,Etoricoxib,Etoricoxib,0.9617916960867282,HIGH,13.705852458880486,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+52,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+53,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+54,Etoricoxib,Etoricoxib,0.9791611422773813,HIGH,6.053069859849594,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+55,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+56,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+57,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+58,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+59,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+60,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+61,Etoricoxib,Etoricoxib,0.9791611422773813,HIGH,6.053069859849594,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+62,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+63,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+64,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+65,Etoricoxib,Etoricoxib,0.9811738817054194,HIGH,5.348563766175844,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+66,Etoricoxib,Etoricoxib,0.9791611422773813,HIGH,6.053069859849594,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+67,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+68,Etoricoxib,Etoricoxib,0.9872228111354097,HIGH,10.443145360904111,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+69,Etoricoxib,Etoricoxib,0.9884075323826728,HIGH,8.016181194628698,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+70,Dolonex,Dolonex,0.9456012752371898,HIGH,9.454692595256915,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+71,Dolonex,Dolonex,0.935720933747176,HIGH,13.213332010407383,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+72,Dolonex,Dolonex,0.9357928163347605,HIGH,6.91632890912706,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+73,Dolonex,Dolonex,0.9556086473719646,HIGH,8.586703599221067,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+74,Dolonex,Dolonex,0.9467760565392875,HIGH,6.764360157875273,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+75,Dolonex,Dolonex,0.9363082426297538,HIGH,26.3564337325563,SUSPICIOUS,SUSPICIOUS,The sample requires further verification because either classification confidence or anomaly score is outside the genuine range.
+76,Dolonex,Dolonex,0.9456012752371898,HIGH,9.454692595256915,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+77,Dolonex,Dolonex,0.9538802329737229,HIGH,9.583583392522542,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+78,Dolonex,Dolonex,0.935720933747176,HIGH,13.213332010407383,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+79,Dolonex,Dolonex,0.9153668436353537,HIGH,4.798224915711018,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+80,Dolonex,Dolonex,0.9148283181286607,HIGH,47.506426572203736,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+81,Dolonex,Dolonex,0.9357928163347605,HIGH,6.91632890912706,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+82,Dolonex,Dolonex,0.9241316546415186,HIGH,6.061846832669885,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+83,Dolonex,Dolonex,0.9279892217257608,HIGH,10.248648340442799,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+84,Dolonex,Dolonex,0.938967461697937,HIGH,7.070715140885908,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+85,Dolonex,Dolonex,0.9357928163347605,HIGH,6.91632890912706,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+86,Dolonex,Dolonex,0.9148283181286607,HIGH,47.506426572203736,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+87,Dolonex,Dolonex,0.9148283181286607,HIGH,47.506426572203736,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+88,Dolonex,Dolonex,0.9403820826319435,HIGH,5.119786215225081,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+89,Dolonex,Dolonex,0.9151992061089741,HIGH,18.32346841524742,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+90,Dolonex,Dolonex,0.9241316546415186,HIGH,6.061846832669885,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+91,Dolonex,Dolonex,0.9279892217257608,HIGH,10.248648340442799,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+92,Dolonex,Dolonex,0.938967461697937,HIGH,7.070715140885908,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+93,Dolonex,Dolonex,0.938967461697937,HIGH,7.070715140885908,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+94,Dolonex,Dolonex,0.9153668436353537,HIGH,4.798224915711018,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+95,Dolonex,Dolonex,0.9403820826319435,HIGH,5.119786215225081,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+96,Dolonex,Dolonex,0.9501764684762996,HIGH,5.957816528420381,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+97,Dolonex,Dolonex,0.9153668436353537,HIGH,4.798224915711018,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+98,Dolonex,Dolonex,0.938967461697937,HIGH,7.070715140885908,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+99,Dolonex,Dolonex,0.938967461697937,HIGH,7.070715140885908,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+100,Paracetamol,Paracetamol,0.9888616277457596,HIGH,8.93777249179584,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+101,Paracetamol,Paracetamol,0.9865104938819191,HIGH,10.542344027198228,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+102,Paracetamol,Paracetamol,0.9825327475133478,HIGH,7.357865859124616,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+103,Paracetamol,Paracetamol,0.9854767264283266,HIGH,3.645782622702654,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+104,Paracetamol,Paracetamol,0.9872457350176863,HIGH,46.98132138017536,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+105,Paracetamol,Paracetamol,0.9854767264283266,HIGH,3.645782622702654,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+106,Paracetamol,Paracetamol,0.9849607378647878,HIGH,10.125437732163505,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+107,Paracetamol,Paracetamol,0.9849607378647878,HIGH,10.125437732163505,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+108,Paracetamol,Paracetamol,0.988386245055673,HIGH,12.113482412181611,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+109,Paracetamol,Paracetamol,0.988386245055673,HIGH,12.113482412181611,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+110,Paracetamol,Paracetamol,0.9888616277457596,HIGH,8.93777249179584,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+111,Paracetamol,Paracetamol,0.9872457350176863,HIGH,46.98132138017536,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+112,Paracetamol,Paracetamol,0.9834659281007601,HIGH,5.4011798088452,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+113,Paracetamol,Paracetamol,0.988386245055673,HIGH,12.113482412181611,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+114,Paracetamol,Paracetamol,0.988386245055673,HIGH,12.113482412181611,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+115,Paracetamol,Paracetamol,0.9859500964884577,HIGH,17.92093465646201,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+116,Paracetamol,Paracetamol,0.9854767264283266,HIGH,3.645782622702654,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+117,Paracetamol,Paracetamol,0.9817779373763964,HIGH,15.473128642695883,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+118,Paracetamol,Paracetamol,0.9817779373763964,HIGH,15.473128642695883,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+119,Paracetamol,Paracetamol,0.9740374767352296,HIGH,17.326834385430573,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+120,Paracetamol,Paracetamol,0.9883952640360287,HIGH,18.07679817051303,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+121,Paracetamol,Paracetamol,0.9825327475133478,HIGH,7.357865859124616,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+122,Paracetamol,Paracetamol,0.9841312251201761,HIGH,4.059126615264652,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+123,Paracetamol,Paracetamol,0.9854767264283266,HIGH,3.645782622702654,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+124,Paracetamol,Paracetamol,0.9888616277457596,HIGH,8.93777249179584,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+125,Paracetamol,Paracetamol,0.9865104938819191,HIGH,10.542344027198228,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+126,Paracetamol,Paracetamol,0.9825327475133478,HIGH,7.357865859124616,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+127,Paracetamol,Paracetamol,0.9854767264283266,HIGH,3.645782622702654,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+128,Paracetamol,Paracetamol,0.9757003678546747,HIGH,18.30534446122533,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+129,Paracetamol,Paracetamol,0.9685687787238451,HIGH,19.499438737875156,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+130,Levocetrizine,Levocetrizine,0.8434623250056227,HIGH,860.8287376612969,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+131,Levocetrizine,Levocetrizine,0.8723743698783498,HIGH,12.668683752084291,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+132,Levocetrizine,Levocetrizine,0.9012469915277513,HIGH,11.30770855374067,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+133,Levocetrizine,Levocetrizine,0.8924294954623118,HIGH,13.49999999394686,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+134,Levocetrizine,Levocetrizine,0.8587969002348097,HIGH,10.70652159612689,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+135,Levocetrizine,Levocetrizine,0.8587969002348097,HIGH,10.70652159612689,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+136,Levocetrizine,Levocetrizine,0.8614821299508203,HIGH,90.91582472519805,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+137,Levocetrizine,Levocetrizine,0.8290634498912313,HIGH,17.246251582037075,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+138,Levocetrizine,Levocetrizine,0.8434623250056227,HIGH,860.8287376612969,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+139,Levocetrizine,Levocetrizine,0.9104942654584399,HIGH,27.255624239576715,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+140,Levocetrizine,Levocetrizine,0.8998232406948611,HIGH,86.99727874849668,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+141,Levocetrizine,Levocetrizine,0.8856483958647354,HIGH,12.960128275395505,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+142,Levocetrizine,Levocetrizine,0.8856483958647354,HIGH,12.960128275395505,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+143,Levocetrizine,Levocetrizine,0.8760574392296755,HIGH,8.66666666723205,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+144,Levocetrizine,Levocetrizine,0.8290634498912313,HIGH,17.246251582037075,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+145,Levocetrizine,Levocetrizine,0.8294262209239289,HIGH,5.5486001117660635,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+146,Levocetrizine,Levocetrizine,0.825846244386921,HIGH,7.8951512720313834,GENUINE,GENUINE,High classification confidence and normal anomaly score.
+147,Levocetrizine,Levocetrizine,0.8434623250056227,HIGH,860.8287376612969,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+148,Levocetrizine,Levocetrizine,0.882294285684726,HIGH,323.0135445873354,COUNTERFEIT,COUNTERFEIT,High classification confidence but the sample is far outside the genuine reference distribution.
+149,Levocetrizine,Levocetrizine,0.8760574392296755,HIGH,8.66666666723205,GENUINE,GENUINE,High classification confidence and normal anomaly score.

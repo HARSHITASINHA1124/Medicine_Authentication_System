@@ -54,8 +54,8 @@ RESULTS_DIR.mkdir(
 # The final project will use the real AS7262 hardware dataset.
 
 DATASET_PATH = (
-    PROCESSED_DATA_DIR
-    / "medicines_as7262_pipeline_test.csv"
+    RAW_DATA_DIR
+    / "medicine_spectral_raw.csv"
 )
 
 

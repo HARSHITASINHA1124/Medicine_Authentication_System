@@ -6,7 +6,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 # CONFIGURATION
 # --------------------------------------------------
 
-DATA_PATH = "data/processed/medicines_as7262_pipeline_test.csv"
+DATA_PATH = "data/raw/medicine_spectral_raw.csv"
 
 TRAIN_PATH = "data/processed/train.csv"
 TEST_PATH = "data/processed/test.csv"

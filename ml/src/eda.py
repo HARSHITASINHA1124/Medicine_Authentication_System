@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,21 +8,47 @@ import matplotlib.pyplot as plt
 from scipy.stats import f_oneway
 from sklearn.feature_selection import mutual_info_classif
 
-from .config import FEATURES
-from .data_loader import load_data
-from .preprocessing import AS7262Preprocessor
+
+try:
+    from .config import (
+        DATASET_PATH,
+        CHANNELS,
+        TARGET,
+        GROUP
+    )
+
+    from .data_loader import load_data
+
+    from .preprocessing import AS7262Preprocessor
+
+except ImportError:  # pragma: no cover
+
+    from config import (
+        DATASET_PATH,
+        CHANNELS,
+        TARGET,
+        GROUP
+    )
+
+    from data_loader import load_data
+
+    from preprocessing import AS7262Preprocessor
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-DATA_PATH = "data/processed/medicines_as7262.csv"
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-OUTPUT_DIR = "eda_results"
+# Dataset path comes directly from config.py
+DATA_PATH = DATASET_PATH
 
-os.makedirs(
-    OUTPUT_DIR,
+# EDA output directory
+OUTPUT_DIR = BASE_DIR / "eda_results"
+
+OUTPUT_DIR.mkdir(
+    parents=True,
     exist_ok=True
 )
 
@@ -36,27 +63,48 @@ def dataset_summary(df):
     print("DATASET SUMMARY")
     print("=" * 60)
 
-    print(f"Number of rows: {len(df)}")
-    print(f"Number of columns: {len(df.columns)}")
+    print(
+        f"Dataset path: {DATA_PATH}"
+    )
+
+    print(
+        f"Number of rows: {len(df)}"
+    )
+
+    print(
+        f"Number of columns: {len(df.columns)}"
+    )
+
+    print("\nColumns:")
+
+    print(
+        df.columns.tolist()
+    )
 
     print("\nMedicines:")
+
     print(
-        df["medicine"].value_counts()
+        df[TARGET].value_counts()
     )
 
     print("\nUnique samples:")
+
     print(
-        df["sample_id"].nunique()
+        df[GROUP].nunique()
     )
 
     print("\nMissing values:")
+
     print(
-        df[FEATURES].isna().sum()
+        df[CHANNELS].isna().sum()
     )
 
     print("\nBasic statistics:")
+
     print(
-        df[FEATURES].describe().round(4)
+        df[CHANNELS]
+        .describe()
+        .round(4)
     )
 
 
@@ -66,16 +114,20 @@ def dataset_summary(df):
 
 def plot_channel_distributions(df):
 
-    for feature in FEATURES:
+    for feature in CHANNELS:
 
-        plt.figure(figsize=(8, 5))
+        plt.figure(
+            figsize=(8, 5)
+        )
 
         for medicine in sorted(
-            df["medicine"].dropna().unique()
+            df[TARGET]
+            .dropna()
+            .unique()
         ):
 
             values = df.loc[
-                df["medicine"] == medicine,
+                df[TARGET] == medicine,
                 feature
             ]
 
@@ -87,19 +139,26 @@ def plot_channel_distributions(df):
             )
 
         plt.xlabel(feature)
-        plt.ylabel("Frequency")
+
+        plt.ylabel(
+            "Frequency"
+        )
+
         plt.title(
             f"Distribution of {feature}"
         )
+
         plt.legend()
+
         plt.tight_layout()
 
-        path = os.path.join(
-            OUTPUT_DIR,
-            f"{feature}_distribution.png"
+        path = (
+            OUTPUT_DIR
+            / f"{feature}_distribution.png"
         )
 
         plt.savefig(path)
+
         plt.close()
 
 
@@ -118,14 +177,18 @@ def plot_mean_spectral_profiles(df):
         650
     ])
 
-    plt.figure(figsize=(9, 6))
+    plt.figure(
+        figsize=(9, 6)
+    )
 
     for medicine in sorted(
-        df["medicine"].dropna().unique()
+        df[TARGET]
+        .dropna()
+        .unique()
     ):
 
         subset = df[
-            df["medicine"] == medicine
+            df[TARGET] == medicine
         ]
 
         means = [
@@ -145,6 +208,7 @@ def plot_mean_spectral_profiles(df):
         ]
 
         means = np.array(means)
+
         stds = np.array(stds)
 
         plt.plot(
@@ -161,22 +225,31 @@ def plot_mean_spectral_profiles(df):
             alpha=0.15
         )
 
-    plt.xlabel("Wavelength (nm)")
-    plt.ylabel("Spectral response")
+    plt.xlabel(
+        "Wavelength (nm)"
+    )
+
+    plt.ylabel(
+        "Spectral response"
+    )
+
     plt.title(
         "Mean AS7262 Spectral Profiles"
     )
+
     plt.legend()
+
     plt.grid(True)
 
     plt.tight_layout()
 
-    path = os.path.join(
-        OUTPUT_DIR,
-        "mean_spectral_profiles.png"
+    path = (
+        OUTPUT_DIR
+        / "mean_spectral_profiles.png"
     )
 
     plt.savefig(path)
+
     plt.close()
 
 
@@ -195,9 +268,13 @@ def plot_normalized_profiles(df):
         650
     ])
 
-    X = df[FEATURES].values
+    X = df[
+        CHANNELS
+    ].values
 
-    totals = X.sum(axis=1)
+    totals = X.sum(
+        axis=1
+    )
 
     totals[
         totals == 0
@@ -209,26 +286,29 @@ def plot_normalized_profiles(df):
 
     normalized_df = pd.DataFrame(
         normalized,
-        columns=FEATURES
+        columns=CHANNELS,
+        index=df.index
     )
 
     normalized_df[
-        "medicine"
+        TARGET
     ] = df[
-        "medicine"
+        TARGET
     ].values
 
-    plt.figure(figsize=(9, 6))
+    plt.figure(
+        figsize=(9, 6)
+    )
 
     for medicine in sorted(
         normalized_df[
-            "medicine"
+            TARGET
         ].unique()
     ):
 
         subset = normalized_df[
             normalized_df[
-                "medicine"
+                TARGET
             ] == medicine
         ]
 
@@ -247,7 +327,10 @@ def plot_normalized_profiles(df):
             label=medicine
         )
 
-    plt.xlabel("Wavelength (nm)")
+    plt.xlabel(
+        "Wavelength (nm)"
+    )
+
     plt.ylabel(
         "Normalized spectral response"
     )
@@ -257,16 +340,18 @@ def plot_normalized_profiles(df):
     )
 
     plt.legend()
+
     plt.grid(True)
 
     plt.tight_layout()
 
-    path = os.path.join(
-        OUTPUT_DIR,
-        "normalized_spectral_profiles.png"
+    path = (
+        OUTPUT_DIR
+        / "normalized_spectral_profiles.png"
     )
 
     plt.savefig(path)
+
     plt.close()
 
 
@@ -277,22 +362,28 @@ def plot_normalized_profiles(df):
 def calculate_correlation(df):
 
     correlation = df[
-        FEATURES
+        CHANNELS
     ].corr()
 
-    print("\n" + "=" * 60)
-    print("CHANNEL CORRELATION")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "CHANNEL CORRELATION"
+    )
+
+    print(
+        "=" * 60
+    )
 
     print(
         correlation.round(3)
     )
 
     correlation.to_csv(
-        os.path.join(
-            OUTPUT_DIR,
-            "channel_correlation.csv"
-        )
+        OUTPUT_DIR
+        / "channel_correlation.csv"
     )
 
     return correlation
@@ -300,7 +391,9 @@ def calculate_correlation(df):
 
 def plot_correlation(correlation):
 
-    plt.figure(figsize=(8, 7))
+    plt.figure(
+        figsize=(8, 7)
+    )
 
     plt.imshow(
         correlation,
@@ -310,13 +403,17 @@ def plot_correlation(correlation):
     plt.colorbar()
 
     plt.xticks(
-        range(len(correlation.columns)),
+        range(
+            len(correlation.columns)
+        ),
         correlation.columns,
         rotation=45
     )
 
     plt.yticks(
-        range(len(correlation.columns)),
+        range(
+            len(correlation.columns)
+        ),
         correlation.columns
     )
 
@@ -326,12 +423,13 @@ def plot_correlation(correlation):
 
     plt.tight_layout()
 
-    path = os.path.join(
-        OUTPUT_DIR,
-        "channel_correlation.png"
+    path = (
+        OUTPUT_DIR
+        / "channel_correlation.png"
     )
 
     plt.savefig(path)
+
     plt.close()
 
 
@@ -341,7 +439,9 @@ def plot_correlation(correlation):
 
 def create_engineered_features(df):
 
-    X = df[FEATURES]
+    X = df[
+        CHANNELS
+    ]
 
     preprocessor = AS7262Preprocessor(
         use_normalized=True,
@@ -367,9 +467,9 @@ def create_engineered_features(df):
     )
 
     engineered_df[
-        "medicine"
+        TARGET
     ] = df[
-        "medicine"
+        TARGET
     ].values
 
     return (
@@ -386,19 +486,27 @@ def calculate_feature_statistics(
     engineered_df
 ):
 
-    print("\n" + "=" * 60)
-    print("FEATURE SEPARATION ANALYSIS")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "FEATURE SEPARATION ANALYSIS"
+    )
+
+    print(
+        "=" * 60
+    )
 
     feature_names = [
         column
         for column in engineered_df.columns
-        if column != "medicine"
+        if column != TARGET
     ]
 
     medicines = (
         engineered_df[
-            "medicine"
+            TARGET
         ].unique()
     )
 
@@ -412,7 +520,7 @@ def calculate_feature_statistics(
 
             values = engineered_df.loc[
                 engineered_df[
-                    "medicine"
+                    TARGET
                 ] == medicine,
                 feature
             ].dropna()
@@ -468,10 +576,8 @@ def calculate_feature_statistics(
     )
 
     results_df.to_csv(
-        os.path.join(
-            OUTPUT_DIR,
-            "feature_statistics.csv"
-        ),
+        OUTPUT_DIR
+        / "feature_statistics.csv",
         index=False
     )
 
@@ -492,14 +598,22 @@ def calculate_mutual_information(
     engineered_df
 ):
 
-    print("\n" + "=" * 60)
-    print("MUTUAL INFORMATION")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "MUTUAL INFORMATION"
+    )
+
+    print(
+        "=" * 60
+    )
 
     feature_names = [
         column
         for column in engineered_df.columns
-        if column != "medicine"
+        if column != TARGET
     ]
 
     X = engineered_df[
@@ -507,13 +621,14 @@ def calculate_mutual_information(
     ]
 
     y = engineered_df[
-        "medicine"
+        TARGET
     ]
 
-    # Convert class names to integer labels
+    # Convert medicine names into integer labels
     y_encoded = pd.factorize(y)[0]
 
     # Replace invalid values
+
     X = X.replace(
         [np.inf, -np.inf],
         np.nan
@@ -540,10 +655,8 @@ def calculate_mutual_information(
     )
 
     results.to_csv(
-        os.path.join(
-            OUTPUT_DIR,
-            "mutual_information.csv"
-        ),
+        OUTPUT_DIR
+        / "mutual_information.csv",
         index=False
     )
 
@@ -557,7 +670,7 @@ def calculate_mutual_information(
 
 
 # ============================================================
-# FEATURE CORRELATION
+# ENGINEERED FEATURE CORRELATION
 # ============================================================
 
 def calculate_feature_correlation(
@@ -567,7 +680,7 @@ def calculate_feature_correlation(
     feature_names = [
         column
         for column in engineered_df.columns
-        if column != "medicine"
+        if column != TARGET
     ]
 
     correlation = engineered_df[
@@ -575,10 +688,8 @@ def calculate_feature_correlation(
     ].corr()
 
     correlation.to_csv(
-        os.path.join(
-            OUTPUT_DIR,
-            "engineered_feature_correlation.csv"
-        )
+        OUTPUT_DIR
+        / "engineered_feature_correlation.csv"
     )
 
     return correlation
@@ -600,7 +711,7 @@ def generate_feature_recommendation(
     )
 
     # --------------------------------------------------------
-    # Rank each feature separately
+    # Rank features
     # --------------------------------------------------------
 
     merged[
@@ -620,6 +731,7 @@ def generate_feature_recommendation(
     )
 
     # Lower combined rank = better
+
     merged[
         "combined_rank"
     ] = (
@@ -633,16 +745,22 @@ def generate_feature_recommendation(
     )
 
     merged.to_csv(
-        os.path.join(
-            OUTPUT_DIR,
-            "feature_ranking.csv"
-        ),
+        OUTPUT_DIR
+        / "feature_ranking.csv",
         index=False
     )
 
-    print("\n" + "=" * 60)
-    print("FEATURE RANKING")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "FEATURE RANKING"
+    )
+
+    print(
+        "=" * 60
+    )
 
     print(
         merged[
@@ -670,8 +788,13 @@ def run_eda():
         "\nStarting AS7262 EDA..."
     )
 
+    print(
+        f"\nUsing dataset:"
+        f"\n{DATA_PATH}"
+    )
+
     # --------------------------------------------------------
-    # Load
+    # Load dataset from config.py DATASET_PATH
     # --------------------------------------------------------
 
     df = load_data(
@@ -679,13 +802,15 @@ def run_eda():
     )
 
     # --------------------------------------------------------
-    # Summary
+    # Basic summary
     # --------------------------------------------------------
 
-    dataset_summary(df)
+    dataset_summary(
+        df
+    )
 
     # --------------------------------------------------------
-    # Raw feature distributions
+    # Raw channel distributions
     # --------------------------------------------------------
 
     plot_channel_distributions(
@@ -693,7 +818,7 @@ def run_eda():
     )
 
     # --------------------------------------------------------
-    # Spectral profiles
+    # Mean spectral profiles
     # --------------------------------------------------------
 
     plot_mean_spectral_profiles(
@@ -712,8 +837,10 @@ def run_eda():
     # Raw channel correlation
     # --------------------------------------------------------
 
-    correlation = calculate_correlation(
-        df
+    correlation = (
+        calculate_correlation(
+            df
+        )
     )
 
     plot_correlation(
@@ -724,13 +851,16 @@ def run_eda():
     # Engineered features
     # --------------------------------------------------------
 
-    engineered_df, _ = (
-        create_engineered_features(
-            df
-        )
+    (
+        engineered_df,
+        _
+    ) = create_engineered_features(
+        df
     )
 
-    print("\nEngineered features:")
+    print(
+        "\nEngineered features:"
+    )
 
     print(
         list(
@@ -761,7 +891,7 @@ def run_eda():
     )
 
     # --------------------------------------------------------
-    # Feature correlation
+    # Engineered feature correlation
     # --------------------------------------------------------
 
     calculate_feature_correlation(
@@ -779,10 +909,13 @@ def run_eda():
         )
     )
 
-    print("\nEDA completed.")
+    print(
+        "\nEDA completed."
+    )
 
     print(
-        f"Results saved in: {OUTPUT_DIR}/"
+        f"\nResults saved in:"
+        f"\n{OUTPUT_DIR}"
     )
 
     return (
@@ -793,7 +926,7 @@ def run_eda():
 
 
 # ============================================================
-# RUN
+# MAIN
 # ============================================================
 
 if __name__ == "__main__":

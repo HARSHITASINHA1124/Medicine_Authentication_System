@@ -1,51 +1,33 @@
+# ml/src/data_loader.py
+
 import pandas as pd
-
-FEATURES = [
-    "ch450",
-    "ch500",
-    "ch550",
-    "ch570",
-    "ch600",
-    "ch650"
-]
-
-TARGET = "medicine"
+from pathlib import Path
+from config import DATASET_PATH 
 
 
-def load_data(path):
-    df = pd.read_csv('ml\data\processed\medicines_as7262.csv')
+def load_data(path=None):
+    """
+    Load the AS7262-compatible dataset.
 
-    # Rename current ASD dataset column if necessary
-    if "Sample Code" in df.columns and "sample_id" not in df.columns:
-        df = df.rename(columns={
-            "Sample Code": "sample_id"
-        })
+    The same loader will be used for:
+    - ASD pipeline-test data
+    - real AS7262 hardware data
+    """
+    file_path = Path(path) if path else Path(DATASET_PATH)
 
-    # For the current ASD dataset, create missing metadata columns
-    # so that the same pipeline can later accept hardware data.
-    if "batch_id" not in df.columns:
-        df["batch_id"] = df["sample_id"]
-
-    if "manufacturer" not in df.columns:
-        df["manufacturer"] = "unknown"
-
-    if "measurement_id" not in df.columns:
-        df["measurement_id"] = 1
-
-    required = [
-        "sample_id",
-        "medicine",
-        "batch_id",
-        "manufacturer",
-        "measurement_id",
-        *FEATURES
-    ]
-
-    missing = [column for column in required if column not in df.columns]
-
-    if missing:
-        raise ValueError(
-            f"Missing required columns: {missing}"
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Dataset not found: {file_path}"
         )
 
+    df = pd.read_csv(file_path)
+
+    print(f"Loaded dataset: {file_path}")
+    print(f"Shape: {df.shape}")
+
     return df
+
+
+if __name__ == "__main__":
+    df = load_data()
+    print(df.head())

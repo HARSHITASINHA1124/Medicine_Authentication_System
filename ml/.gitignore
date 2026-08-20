@@ -21,10 +21,8 @@ env/
 
 artifacts/
 checkpoints/
-models/
 weights/
 *.pkl
-*.joblib
 *.h5
 *.hdf5
 *.onnx

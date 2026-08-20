@@ -1,8 +1,9 @@
-"""
-Raspberry Pi ML Inference Pipeline
-==================================
 
-Production inference pipeline for the Medicine Authentication System.
+"""
+Medicine Authentication System
+================================
+
+Production ML inference pipeline.
 
 Flow:
 
@@ -12,23 +13,19 @@ Flow:
     Scan aggregation
             |
             v
-    Classification
-            |
-            +----> medicine
-            |
-            +----> classification confidence
+    Medicine classification
             |
             v
-    Medicine-aware anomaly detection
+    Saved preprocessing
             |
             v
-    Mahalanobis anomaly score
+    Medicine-aware Mahalanobis anomaly detection
             |
             v
     Medicine-specific thresholds
             |
             v
-    Final decision
+    Final authentication decision
             |
             +----> GENUINE
             +----> SUSPICIOUS
@@ -40,7 +37,6 @@ Flow:
 
 from pathlib import Path
 import sys
-import json
 
 import numpy as np
 import pandas as pd
@@ -56,20 +52,16 @@ ML_DIR = Path(__file__).resolve().parent
 SRC_DIR = ML_DIR / "src"
 MODELS_DIR = ML_DIR / "models"
 
-
 CLASSIFIER_PATH = (
-    MODELS_DIR /
-    "best_classifier.joblib"
+    MODELS_DIR / "best_classifier.joblib"
 )
 
 ANOMALY_MODEL_PATH = (
-    MODELS_DIR /
-    "anomaly_model.joblib"
+    MODELS_DIR / "anomaly_model.joblib"
 )
 
 ANOMALY_THRESHOLDS_PATH = (
-    MODELS_DIR /
-    "anomaly_thresholds.joblib"
+    MODELS_DIR / "anomaly_thresholds.joblib"
 )
 
 
@@ -78,28 +70,21 @@ ANOMALY_THRESHOLDS_PATH = (
 # ============================================================
 
 if str(SRC_DIR) not in sys.path:
-
-    sys.path.insert(
-        0,
-        str(SRC_DIR)
-    )
+    sys.path.insert(0, str(SRC_DIR))
 
 
-# IMPORTANT:
-#
-# The saved joblib files contain references to:
+# Saved joblib models may contain references to:
 #
 #     preprocessing.AS7262Preprocessor
 #
-# Therefore preprocessing must be importable BEFORE
+# Therefore preprocessing.py must be importable before
 # joblib.load() is called.
 
 try:
-
-    import preprocessing
+    from src import preprocessing
+    sys.modules.setdefault("preprocessing", preprocessing)
 
 except ImportError as exc:
-
     raise ImportError(
         "Could not import preprocessing.py. "
         f"Expected it at: {SRC_DIR / 'preprocessing.py'}"
@@ -119,26 +104,13 @@ CHANNELS = [
     "ch650"
 ]
 
-
-# ------------------------------------------------------------
-# Number of readings returned by Raspberry Pi per scan
-# ------------------------------------------------------------
-
 READINGS_PER_SCAN = 10
 
 
-# ------------------------------------------------------------
 # Classification confidence thresholds
-# ------------------------------------------------------------
 
 CLASSIFICATION_HIGH_THRESHOLD = 0.80
 CLASSIFICATION_MEDIUM_THRESHOLD = 0.60
-
-
-# ------------------------------------------------------------
-# Unknown / very-low classification confidence
-# ------------------------------------------------------------
-
 CLASSIFICATION_UNKNOWN_THRESHOLD = 0.40
 
 
@@ -149,44 +121,30 @@ CLASSIFICATION_UNKNOWN_THRESHOLD = 0.40
 def load_models():
     """
     Load all ML artifacts required for inference.
+
+    Returns:
+        classifier
+        anomaly_model
+        anomaly_thresholds
     """
 
-    # --------------------------------------------------------
-    # Check classifier
-    # --------------------------------------------------------
-
     if not CLASSIFIER_PATH.exists():
-
         raise FileNotFoundError(
             "Classifier model not found:\n"
             f"{CLASSIFIER_PATH}"
         )
 
-    # --------------------------------------------------------
-    # Check anomaly model
-    # --------------------------------------------------------
-
     if not ANOMALY_MODEL_PATH.exists():
-
         raise FileNotFoundError(
             "Anomaly model not found:\n"
             f"{ANOMALY_MODEL_PATH}"
         )
 
-    # --------------------------------------------------------
-    # Check thresholds
-    # --------------------------------------------------------
-
     if not ANOMALY_THRESHOLDS_PATH.exists():
-
         raise FileNotFoundError(
             "Anomaly threshold file not found:\n"
             f"{ANOMALY_THRESHOLDS_PATH}"
         )
-
-    print(
-        "Loading ML models..."
-    )
 
     classifier = joblib.load(
         CLASSIFIER_PATH
@@ -197,18 +155,13 @@ def load_models():
     )
 
     anomaly_thresholds = joblib.load(
-            ANOMALY_THRESHOLDS_PATH
-        )
-
-    # --------------------------------------------------------
-    # Validate anomaly model
-    # --------------------------------------------------------
+        ANOMALY_THRESHOLDS_PATH
+    )
 
     if not isinstance(
         anomaly_model,
         dict
     ):
-
         raise ValueError(
             "anomaly_model.joblib must contain "
             "the medicine-aware anomaly model dictionary."
@@ -223,10 +176,6 @@ def load_models():
             f"{anomaly_model.get('model_type')}"
         )
 
-    print(
-        "ML models loaded successfully."
-    )
-
     return (
         classifier,
         anomaly_model,
@@ -238,9 +187,7 @@ def load_models():
 # INPUT VALIDATION
 # ============================================================
 
-def validate_reading(
-    reading
-):
+def validate_reading(reading):
     """
     Validate one AS7262 reading.
     """
@@ -249,7 +196,6 @@ def validate_reading(
         reading,
         dict
     ):
-
         raise ValueError(
             "Each reading must be a dictionary."
         )
@@ -261,7 +207,6 @@ def validate_reading(
     ]
 
     if missing:
-
         raise ValueError(
             "Reading is missing AS7262 channels: "
             f"{missing}"
@@ -274,21 +219,18 @@ def validate_reading(
         value = reading[channel]
 
         try:
-
             value = float(value)
 
         except (
             TypeError,
             ValueError
         ):
-
             raise ValueError(
                 f"Invalid value for {channel}: "
                 f"{value}"
             )
 
         if not np.isfinite(value):
-
             raise ValueError(
                 f"Invalid non-finite value for "
                 f"{channel}: {value}"
@@ -303,37 +245,21 @@ def validate_reading(
 # SCAN AGGREGATION
 # ============================================================
 
-def aggregate_scan(
-    readings
-):
+def aggregate_scan(readings):
     """
     Convert 10 Raspberry Pi readings into one scan.
 
-    Input:
+    Mean values are used as the aggregated spectrum.
 
-        [
-            {
-                "ch450": ...,
-                "ch500": ...,
-                ...
-            },
-            ...
-        ]
+    Also calculates:
 
-    Output:
-
-        {
-            "ch450": average,
-            "ch500": average,
-            ...
-        }
-
-    Median is also calculated internally to detect
-    unusually noisy readings.
+        median
+        channel standard deviation
+        coefficient of variation
+        measurement stability
     """
 
     if not readings:
-
         raise ValueError(
             "No readings supplied."
         )
@@ -444,19 +370,12 @@ def classify_scan(
     X = pd.DataFrame(
         [
             [
-                aggregated_reading[
-                    channel
-                ]
-
+                aggregated_reading[channel]
                 for channel in CHANNELS
             ]
         ],
         columns=CHANNELS
     )
-
-    # --------------------------------------------------------
-    # Prediction
-    # --------------------------------------------------------
 
     prediction = classifier.predict(
         X
@@ -465,10 +384,6 @@ def classify_scan(
     medicine = str(
         prediction[0]
     )
-
-    # --------------------------------------------------------
-    # Classification probability
-    # --------------------------------------------------------
 
     probabilities = {}
 
@@ -559,11 +474,8 @@ def create_engineered_features(
     anomaly_model
 ):
     """
-    Use the EXACT preprocessor saved inside
-    anomaly_model.joblib.
-
-    This is important because the anomaly thresholds
-    were generated using this preprocessing pipeline.
+    Use the exact preprocessing pipeline saved
+    inside anomaly_model.joblib.
     """
 
     preprocessor = anomaly_model.get(
@@ -580,10 +492,7 @@ def create_engineered_features(
     X_raw = pd.DataFrame(
         [
             [
-                aggregated_reading[
-                    channel
-                ]
-
+                aggregated_reading[channel]
                 for channel in CHANNELS
             ]
         ],
@@ -632,7 +541,7 @@ def calculate_anomaly_score(
     anomaly_model
 ):
     """
-    Calculate the medicine-aware Mahalanobis distance.
+    Calculate medicine-aware Mahalanobis distance.
 
     The anomaly model contains:
 
@@ -640,15 +549,7 @@ def calculate_anomaly_score(
             |
             +-- StandardScaler
             |
-            +-- EmpiricalCovariance
-
-    The score is:
-
-        sqrt(
-            (x - mean)^T
-            precision
-            (x - mean)
-        )
+            +-- covariance model
     """
 
     if not isinstance(
@@ -784,21 +685,19 @@ def get_anomaly_thresholds(
 ):
     """
     Get medicine-specific anomaly thresholds.
-    """
 
-    # --------------------------------------------------------
-    # Current threshold format:
-    #
-    # {
-    #   "version": "2.0",
-    #   "profiles": {
-    #       "MDMA": {
-    #           "genuine_threshold": ...,
-    #           "counterfeit_threshold": ...
-    #       }
-    #   }
-    # }
-    # --------------------------------------------------------
+    Expected structure:
+
+        {
+            "version": "2.0",
+            "profiles": {
+                "MedicineName": {
+                    "genuine_threshold": ...,
+                    "counterfeit_threshold": ...
+                }
+            }
+        }
+    """
 
     if not isinstance(
         anomaly_thresholds,
@@ -963,35 +862,26 @@ def determine_final_status(
     """
     Combine classification confidence and anomaly result.
 
-    Main decision logic:
+    Rules:
 
-    1. Very-low classification confidence
-       -> SUSPICIOUS
+        HIGH + GENUINE
+            -> GENUINE
 
-    2. HIGH classification + GENUINE anomaly
-       -> GENUINE
+        HIGH + SUSPICIOUS
+            -> SUSPICIOUS
 
-    3. HIGH classification + SUSPICIOUS anomaly
-       -> SUSPICIOUS
+        HIGH + COUNTERFEIT
+            -> COUNTERFEIT
 
-    4. HIGH classification + COUNTERFEIT anomaly
-       -> COUNTERFEIT
+        MEDIUM
+            -> SUSPICIOUS unless counterfeit
 
-    5. MEDIUM classification
-       -> cannot be confidently authenticated
-       -> SUSPICIOUS unless anomaly is strongly counterfeit
+        LOW
+            -> SUSPICIOUS unless counterfeit
 
-    6. LOW classification
-       -> SUSPICIOUS
-
-    The anomaly layer is therefore allowed to catch a
-    counterfeit even when the classifier recognizes the
-    medicine with high confidence.
+        Very-low confidence
+            -> SUSPICIOUS unless counterfeit
     """
-
-    # --------------------------------------------------------
-    # Classification confidence unavailable
-    # --------------------------------------------------------
 
     if classification_confidence is None:
 
@@ -1022,15 +912,12 @@ def determine_final_status(
     ):
 
         if anomaly_status == "GENUINE":
-
             return "GENUINE"
 
         if anomaly_status == "SUSPICIOUS":
-
             return "SUSPICIOUS"
 
         if anomaly_status == "COUNTERFEIT":
-
             return "COUNTERFEIT"
 
     # --------------------------------------------------------
@@ -1043,7 +930,6 @@ def determine_final_status(
     ):
 
         if anomaly_status == "COUNTERFEIT":
-
             return "COUNTERFEIT"
 
         return "SUSPICIOUS"
@@ -1058,14 +944,9 @@ def determine_final_status(
     ):
 
         if anomaly_status == "COUNTERFEIT":
-
             return "COUNTERFEIT"
 
         return "SUSPICIOUS"
-
-    # --------------------------------------------------------
-    # Safety fallback
-    # --------------------------------------------------------
 
     return "SUSPICIOUS"
 
@@ -1087,9 +968,9 @@ def generate_explainability(
     """
     Generate human-readable explanation data.
 
-    This is intended to be returned to the backend/frontend
-    so the UI can explain why a medicine was classified
-    as genuine, suspicious, or counterfeit.
+    These feature values are diagnostic feature
+    magnitudes. They are NOT claimed to be SHAP
+    contributions.
     """
 
     genuine_threshold = (
@@ -1197,15 +1078,8 @@ def generate_explainability(
         )
 
     # --------------------------------------------------------
-    # Feature contribution proxy
+    # Feature diagnostic information
     # --------------------------------------------------------
-    #
-    # We do NOT claim these are true model-specific
-    # SHAP contributions.
-    #
-    # Instead, we report the largest absolute engineered
-    # feature values after transformation as diagnostic
-    # information.
 
     feature_values = np.asarray(
         feature_values,
@@ -1221,7 +1095,6 @@ def generate_explainability(
         if index >= len(
             feature_names
         ):
-
             break
 
         feature_pairs.append({
@@ -1250,7 +1123,7 @@ def generate_explainability(
     )
 
     # --------------------------------------------------------
-    # Stability
+    # Measurement stability
     # --------------------------------------------------------
 
     if stability_cv < 0.05:
@@ -1344,19 +1217,20 @@ def authenticate_scan(
     Authenticate one Raspberry Pi scan.
 
     Input:
-        10 AS7262 readings
+        readings = list of exactly 10 AS7262 readings
 
     Output:
+        dictionary containing:
 
-        {
-            "medicine": "...",
-            "classification_confidence": 0.94,
-            "anomaly_score": 3.21,
-            "classification_status": "HIGH",
-            "anomaly_status": "GENUINE",
-            "final_status": "GENUINE",
-            "explainability": {...}
-        }
+            medicine
+            classification confidence
+            anomaly score
+            classification status
+            anomaly status
+            final status
+            explainability
+            scan data
+            classification probabilities
     """
 
     # --------------------------------------------------------
@@ -1376,7 +1250,7 @@ def authenticate_scan(
         ) = load_models()
 
     # --------------------------------------------------------
-    # Validate number of readings
+    # Validate readings
     # --------------------------------------------------------
 
     if len(readings) == 0:
@@ -1395,7 +1269,7 @@ def authenticate_scan(
         )
 
     # --------------------------------------------------------
-    # Aggregate the 10 readings
+    # Aggregate 10 readings
     # --------------------------------------------------------
 
     aggregation = aggregate_scan(
@@ -1436,7 +1310,7 @@ def authenticate_scan(
     )
 
     # --------------------------------------------------------
-    # Engineered features
+    # Feature preprocessing
     # --------------------------------------------------------
 
     (
@@ -1460,7 +1334,7 @@ def authenticate_scan(
     )
 
     # --------------------------------------------------------
-    # Thresholds
+    # Medicine-specific thresholds
     # --------------------------------------------------------
 
     thresholds = (
@@ -1482,7 +1356,7 @@ def authenticate_scan(
     )
 
     # --------------------------------------------------------
-    # Final decision
+    # Final authentication decision
     # --------------------------------------------------------
 
     final_status = (
@@ -1512,9 +1386,9 @@ def authenticate_scan(
         )
     )
 
-    # ========================================================
-    # RESULT
-    # ========================================================
+    # --------------------------------------------------------
+    # Final result
+    # --------------------------------------------------------
 
     result = {
 
@@ -1524,8 +1398,7 @@ def authenticate_scan(
         "classification_confidence":
             (
                 None
-                if classification_confidence
-                is None
+                if classification_confidence is None
 
                 else float(
                     classification_confidence
@@ -1593,11 +1466,12 @@ def authenticate_scan(
 # SAFE JSON CONVERSION
 # ============================================================
 
-def make_json_serializable(
-    obj
-):
+def make_json_serializable(obj):
     """
-    Convert numpy values to normal Python values.
+    Convert NumPy values into normal Python values.
+
+    Useful when authenticate_scan() output is passed
+    to Flask/FastAPI/Node.js or json.dumps().
     """
 
     if isinstance(
@@ -1664,141 +1538,3 @@ def make_json_serializable(
 
     return obj
 
-
-# ============================================================
-# TEST DATA
-# ============================================================
-
-def create_test_readings():
-    """
-    Generate 10 example readings for testing.
-
-    Replace these values with actual Raspberry Pi
-    AS7262 readings when hardware is available.
-    """
-
-    base = {
-
-        "ch450": 1000.0,
-        "ch500": 1200.0,
-        "ch550": 1400.0,
-        "ch570": 1500.0,
-        "ch600": 1300.0,
-        "ch650": 900.0
-    }
-
-    readings = []
-
-    for i in range(
-        READINGS_PER_SCAN
-    ):
-
-        # Small deterministic variation
-        # to simulate repeated sensor readings.
-
-        factor = (
-            1.0 +
-            (i - 4.5) * 0.002
-        )
-
-        reading = {
-            channel:
-                value * factor
-
-            for channel, value
-            in base.items()
-        }
-
-        readings.append(
-            reading
-        )
-
-    return readings
-
-
-# ============================================================
-# MAIN TEST
-# ============================================================
-
-if __name__ == "__main__":
-
-    print(
-        "\nRunning Raspberry Pi ML inference test..."
-    )
-
-    try:
-
-        # ----------------------------------------------------
-        # Load models
-        # ----------------------------------------------------
-
-        (
-            classifier,
-            anomaly_model,
-            anomaly_thresholds
-        ) = load_models()
-
-        # ----------------------------------------------------
-        # Generate test readings
-        # ----------------------------------------------------
-
-        readings = (
-            create_test_readings()
-        )
-
-        print(
-            f"\nReceived "
-            f"{len(readings)} AS7262 readings."
-        )
-
-        # ----------------------------------------------------
-        # Authenticate
-        # ----------------------------------------------------
-
-        result = authenticate_scan(
-            readings,
-            classifier,
-            anomaly_model,
-            anomaly_thresholds
-        )
-
-        # ----------------------------------------------------
-        # JSON-safe result
-        # ----------------------------------------------------
-
-        result = (
-            make_json_serializable(
-                result
-            )
-        )
-
-        print(
-            "\n" + "=" * 60
-        )
-
-        print(
-            "AUTHENTICATION RESULT"
-        )
-
-        print(
-            "=" * 60
-        )
-
-        print(
-            json.dumps(
-                result,
-                indent=4
-            )
-        )
-
-    except Exception as error:
-
-        print(
-            "\nInference failed:"
-        )
-
-        print(
-            str(error)
-        )
-
-        raise

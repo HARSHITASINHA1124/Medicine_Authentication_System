@@ -10,49 +10,70 @@ POST /api/scans/
 ### Exact request JSON
 ```json
 {
-  "scan_id": 987,
-  "batch_id": "B12345",
-  "medicine_name": "Paracetamol",
-  "channel_1": 1.2,
-  "channel_2": 2.3,
-  "channel_3": 3.4,
-  "channel_4": 4.5,
-  "channel_5": 5.6,
-  "channel_6": 6.7,
-  "classification": "Suspicious",
-  "confidence_score": 0.61,
-  "anomaly_score": 0.47
+  "medicine": "Dolonex",
+  "classification_confidence": 0.5481,
+  "anomaly_score": 51430928427314.336,
+  "classification_status": "LOW",
+  "anomaly_status": "COUNTERFEIT",
+  "final_status": "COUNTERFEIT",
+  "explainability": {},
+  "scan_data": {
+    "n_readings": 10,
+    "aggregated_reading": {
+      "ch450": 1000.0,
+      "ch500": 1200.0,
+      "ch550": 1400.0,
+      "ch570": 1500.0,
+      "ch600": 1300.0,
+      "ch650": 900.0
+    },
+    "channel_std": {
+      "ch450": 5.74,
+      "ch500": 6.89,
+      "ch550": 8.04,
+      "ch570": 8.62,
+      "ch600": 7.47,
+      "ch650": 5.17
+    },
+    "stability_cv": 0.0057
+  },
+  "classification_probabilities": {
+    "Dolonex": 0.5481,
+    "Etoricoxib": 0.4513
+  }
 }
 ```
 
 ### Field definitions
 | Field | Type | Nullable | Notes |
 |---|---|---:|---|
-| `scan_id` | integer | Yes | Application-level scan identifier. The backend keeps an internal auto-increment key and sets `scan_id` as the business identifier when provided. |
-| `batch_id` | string | Yes | Batch reference if available |
-| `medicine_name` | string | Yes | Medicine name if available |
-| `channel_1` | number | Yes | 6-channel input reading |
-| `channel_2` | number | Yes | 6-channel input reading |
-| `channel_3` | number | Yes | 6-channel input reading |
-| `channel_4` | number | Yes | 6-channel input reading |
-| `channel_5` | number | Yes | 6-channel input reading |
-| `channel_6` | number | Yes | 6-channel input reading |
-| `classification` | string | Yes | Allowed values: `Genuine`, `Counterfeit`, `Suspicious` |
-| `confidence_score` | number | Yes | Range: 0.0 to 1.0 |
-| `anomaly_score` | number | Yes | Range: 0.0 to 1.0 |
+| `medicine` | string | Yes | Predicted medicine name; stored locally as `medicine_name` |
+| `classification_confidence` | number | Yes | Range: 0.0 to 1.0 |
+| `anomaly_score` | number | Yes | Non-negative model score; it is not limited to 0.0-1.0 |
+| `classification_status` | string | Yes | `HIGH`, `MEDIUM`, or `LOW` |
+| `anomaly_status` | string | Yes | `GENUINE`, `COUNTERFEIT`, or `SUSPICIOUS` |
+| `final_status` | string | Yes | `GENUINE`, `COUNTERFEIT`, or `SUSPICIOUS` |
+| `scan_data.n_readings` | integer | Yes | Number of sensor rows; normally 10 |
+| `scan_data.aggregated_reading` | object | Yes | Six readings: `ch450`, `ch500`, `ch550`, `ch570`, `ch600`, `ch650` |
+| `scan_data.channel_std` | object | Yes | Standard deviation for each channel |
+| `scan_data.stability_cv` | number | Yes | Non-negative measurement stability value |
+| `explainability` | object | Yes | Classification/anomaly explanations and top engineered features |
+| `classification_probabilities` | object | Yes | Medicine-to-probability map; values range from 0.0 to 1.0 |
 
 ### Validation rules
-- `classification` must be one of `"Genuine"`, `"Counterfeit"`, or `"Suspicious"` when provided.
+- `final_status` and `anomaly_status` must be one of `"GENUINE"`, `"COUNTERFEIT"`, or `"SUSPICIOUS"` when provided.
 - `confidence_score` must be between `0.0` and `1.0` when provided.
-- `anomaly_score` must be between `0.0` and `1.0` when provided.
-- All channel values are nullable and may be omitted when unavailable.
+- `classification_confidence` must be between `0.0` and `1.0` when provided.
+- `anomaly_score` may be any non-negative number produced by the anomaly model.
+- All ML fields are nullable and may be omitted when unavailable.
 - Nulls are valid for incomplete or unavailable ML results.
 
 ### Raspberry Pi / ML data pipeline
 - The Raspberry Pi produces 6 input channels for one reading.
 - A single sample may include 10 rows from the sensor pipeline before ML evaluation.
 - The backend expects the final ML result payload after aggregation/processing, not the raw 10-row sensor stream.
-- The ML service returns the final classification plus confidence/anomaly values and the 6 aggregate channel readings.
+- The ML service returns the final status, confidence/anomaly values, six aggregate channel readings, standard deviations, stability, probabilities, and explainability.
+- The backend maps `ch450` through `ch650` to its six channel columns and preserves the complete received object in `ml_result`.
 
 ### Backend-controlled fields
 These are created by the backend and should not be provided by ML clients:

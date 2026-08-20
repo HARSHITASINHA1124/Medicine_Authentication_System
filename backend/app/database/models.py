@@ -1,5 +1,5 @@
 # pyrefly: ignore [missing-import]
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Date, JSON
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -36,6 +36,12 @@ class Scan(Base):
     classification = Column(String, nullable=True)
     confidence_score = Column(Float, nullable=True)
     anomaly_score = Column(Float, nullable=True)
+    classification_status = Column(String, nullable=True)
+    anomaly_status = Column(String, nullable=True)
+    final_status = Column(String, nullable=True)
+    number_of_readings = Column(Integer, nullable=True)
+    stability_cv = Column(Float, nullable=True)
+    ml_result = Column(JSON, nullable=True)
     sync_status = Column(String, nullable=False, index=True, default="pending")
 
     batch = relationship("Batch", back_populates="scans")

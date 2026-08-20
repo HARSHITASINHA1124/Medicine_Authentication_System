@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 # pyrefly: ignore [missing-import]
@@ -48,10 +49,12 @@ def sync_batch():
         insert_query = text("""
             INSERT INTO scans
             (device_id, scan_id, batch_id, medicine_name, timestamp, channel_1, channel_2, channel_3, channel_4, channel_5, channel_6,
-             classification, confidence_score, anomaly_score, sync_status)
+             classification, confidence_score, anomaly_score, classification_status, anomaly_status, final_status,
+             number_of_readings, stability_cv, ml_result, sync_status)
             VALUES
             (:device_id, :scan_id, :batch_id, :medicine_name, :timestamp, :channel_1, :channel_2, :channel_3, :channel_4, :channel_5, :channel_6,
-             :classification, :confidence_score, :anomaly_score, :sync_status)
+             :classification, :confidence_score, :anomaly_score, :classification_status, :anomaly_status, :final_status,
+             :number_of_readings, :stability_cv, CAST(:ml_result AS JSONB), :sync_status)
             ON CONFLICT (device_id, scan_id) DO NOTHING
         """)
 
@@ -72,6 +75,12 @@ def sync_batch():
                 "classification": scan.classification,
                 "confidence_score": scan.confidence_score,
                 "anomaly_score": scan.anomaly_score,
+                "classification_status": scan.classification_status,
+                "anomaly_status": scan.anomaly_status,
+                "final_status": scan.final_status,
+                "number_of_readings": scan.number_of_readings,
+                "stability_cv": scan.stability_cv,
+                "ml_result": json.dumps(scan.ml_result) if scan.ml_result is not None else None,
                 "sync_status": scan.sync_status,
             })
 

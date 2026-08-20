@@ -164,6 +164,52 @@ h1 {
   letter-spacing: .06em;
 }
 
+.scan-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.file-picker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 18px;
+  border: 1px solid #6652ae;
+  border-radius: 12px;
+  color: #d9d1ff;
+  background: #171329;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-picker:focus-within {
+  outline: 2px solid #b7a8ff;
+  outline-offset: 3px;
+}
+
+.file-status {
+  flex-basis: 100%;
+  color: #8d95a6;
+  font-size: 13px;
+}
+
+.scan-controls .primary {
+  margin-top: 0;
+}
+
 .primary {
   border: 0;
   color: white;
@@ -257,6 +303,23 @@ h1 {
   letter-spacing: .08em;
 }
 
+.result-medicine {
+  margin-top: 14px;
+  color: #e8eaf0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.result-metrics {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-top: 18px;
+  color: #aeb5c4;
+  font-size: 13px;
+}
+
 .genuine .result-word { color: #65e49a; }
 .counterfeit .result-word { color: #ff6c77; }
 .suspicious .result-word { color: #ffb34d; }
@@ -280,6 +343,26 @@ h1 {
   color: #697182;
   text-align: center;
   font-size: 12px;
+}
+
+.raw-toggle summary {
+  cursor: pointer;
+  color: #a997ff;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.raw-toggle pre {
+  max-height: 280px;
+  overflow: auto;
+  margin-top: 14px;
+  padding: 16px;
+  color: #bfc6d4;
+  background: #0b0d12;
+  border: 1px solid #252a35;
+  border-radius: 10px;
+  text-align: left;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 1100px) {

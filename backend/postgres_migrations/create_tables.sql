@@ -27,9 +27,22 @@ CREATE TABLE IF NOT EXISTS scans (
     classification TEXT,
     confidence_score DOUBLE PRECISION,
     anomaly_score DOUBLE PRECISION,
+    classification_status TEXT,
+    anomaly_status TEXT,
+    final_status TEXT,
+    number_of_readings INTEGER,
+    stability_cv DOUBLE PRECISION,
+    ml_result JSONB,
     sync_status TEXT,
     UNIQUE (device_id, scan_id)
 );
+
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS classification_status TEXT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS anomaly_status TEXT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS final_status TEXT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS number_of_readings INTEGER;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS stability_cv DOUBLE PRECISION;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS ml_result JSONB;
 
 -- Optional index for queries by timestamp / sync_status
 CREATE INDEX IF NOT EXISTS idx_scans_timestamp ON scans (timestamp);

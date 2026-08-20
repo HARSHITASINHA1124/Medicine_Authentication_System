@@ -99,6 +99,68 @@ def test_scan_accepts_six_channel_inputs_and_suspicious_label():
     assert body["channel_6"] == 6.7
 
 
+def test_scan_accepts_ml_result_schema():
+    payload = {
+        "medicine": "Dolonex",
+        "classification_confidence": 0.5481055928992532,
+        "anomaly_score": 51430928427314.336,
+        "classification_status": "LOW",
+        "anomaly_status": "COUNTERFEIT",
+        "final_status": "COUNTERFEIT",
+        "explainability": {
+            "classification": {
+                "medicine": "Dolonex",
+                "confidence": 0.5481055928992532,
+                "status": "LOW",
+                "explanation": "Low confidence",
+            },
+            "anomaly": {
+                "score": 51430928427314.336,
+                "genuine_threshold": 24.67,
+                "counterfeit_threshold": 40.53,
+                "status": "COUNTERFEIT",
+                "distance_from_genuine": 51430928427289.664,
+                "distance_from_counterfeit": 51430928427273.805,
+                "explanation": "Counterfeit boundary crossed",
+            },
+            "measurement": {"stability_cv": 0.0057, "stability_status": "STABLE"},
+            "top_engineered_features": [{"feature": "ratio_600_650", "value": 1.44, "absolute_value": 1.44}],
+        },
+        "scan_data": {
+            "n_readings": 10,
+            "aggregated_reading": {
+                "ch450": 1000.0,
+                "ch500": 1200.0,
+                "ch550": 1400.0,
+                "ch570": 1500.0,
+                "ch600": 1300.0,
+                "ch650": 900.0,
+            },
+            "channel_std": {
+                "ch450": 5.7,
+                "ch500": 6.9,
+                "ch550": 8.0,
+                "ch570": 8.6,
+                "ch600": 7.4,
+                "ch650": 5.2,
+            },
+            "stability_cv": 0.0057,
+        },
+        "classification_probabilities": {"Dolonex": 0.5481, "Etoricoxib": 0.4513},
+    }
+
+    response = client.post("/api/scans/", json=payload)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["medicine_name"] == "Dolonex"
+    assert body["classification"] == "Counterfeit"
+    assert body["confidence_score"] == 0.5481055928992532
+    assert body["anomaly_score"] == 51430928427314.336
+    assert body["channel_1"] == 1000.0
+    assert body["channel_6"] == 900.0
+    assert body["number_of_readings"] == 10
+
+
 def test_invalid_scan_data_rejected():
     response = client.post("/api/scans/", json={
         "classification": "Unknown",
